@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#4f6b2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Kea Hunt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Layout: full-height map with a header bar above and a mode panel docked below, like a field device. */
+:root {
+  --bg: #eef2e6;
+  --surface: #ffffff;
+  --ink: #1d261b;
+  --muted: #5b6656;
+  --line: #d6ddcb;
+  --kea: #4f6b2a;
+  --kea-deep: #2f4318;
+  --flame: #e0661a;
+  --on-accent: #ffffff;
+  --me: #1f6fe0;
+  --display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --t-freezing: #2b5fc4;
+  --t-cold: #2f86b8;
+  --t-cool: #3a8f7a;
+  --t-warm: #c98a12;
+  --t-hot: #e0661a;
+  --t-boiling: #d2352a;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11160f;
+    --surface: #1a2117;
+    --ink: #e7eedf;
+    --muted: #9ba790;
+    --line: #2d3828;
+    --kea: #9cc25a;
+    --kea-deep: #c4e08f;
+    --flame: #ff9142;
+    --on-accent: #10150d;
+    --me: #5aa0ff;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.4 var(--body);
+  display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+[hidden] { display: none !important; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--flame); outline-offset: 2px; }
+
+/* Header */
+.bar {
+  display: flex; align-items: center; gap: 8px;
+  padding-block: 8px;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  background: var(--kea); color: var(--on-accent);
+}
+.hunt-name {
+  flex: 1; min-width: 0; text-align: left;
+  background: none; border: 0; padding: 4px 2px;
+  font: 800 1.25rem/1.1 var(--display); color: inherit;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hunt-name small { display: block; font: 400 .75rem/1.2 var(--body); opacity: .85; letter-spacing: .02em; }
+.modes { display: flex; background: color-mix(in srgb, var(--kea-deep) 55%, transparent); border-radius: 999px; padding: 3px; }
+.modes button {
+  border: 0; background: none; color: inherit; border-radius: 999px;
+  padding: 6px 12px; font-weight: 700; font-size: .9rem; white-space: nowrap;
+}
+.modes button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
+.icon-btn {
+  width: 40px; height: 40px; flex: none; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: none; color: inherit;
+}
+.icon-btn svg { width: 24px; height: 24px; }
+
+/* Map */
+.map-wrap { position: relative; flex: 1; min-height: 160px; }
+#map { position: absolute; inset: 0; background: var(--line); }
+.map-tools { position: absolute; right: 10px; top: 10px; z-index: 500; display: flex; flex-direction: column; gap: 8px; }
+.map-tools button {
+  width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); display: grid; place-items: center;
+  box-shadow: 0 2px 6px rgb(0 0 0 / .18);
+}
+.map-tools button[aria-pressed="true"] { background: var(--kea); color: var(--on-accent); border-color: var(--kea); }
+.map-tools svg { width: 22px; height: 22px; }
+.gps-chip {
+  position: absolute; left: 10px; top: 10px; z-index: 500;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px 10px; font-size: .8rem; font-weight: 700;
+  display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgb(0 0 0 / .15);
+  font-variant-numeric: tabular-nums;
+}
+.gps-chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.gps-chip[data-q="good"] i { background: #2f9a4a; }
+.gps-chip[data-q="ok"] i { background: #d6a11a; }
+.gps-chip[data-q="poor"] i { background: #d2352a; }
+
+.leaflet-container { font-family: var(--body); }
+.pin {
+  width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  background: var(--flame); border: 3px solid #fff; box-shadow: 0 2px 5px rgb(0 0 0 / .35);
+  display: grid; place-items: center;
+}
+.pin b { transform: rotate(45deg); color: #fff; font: 800 .85rem/1 var(--display); }
+.pin.found { background: #6c7a63; }
+.pin.target { background: var(--t-boiling); outline: 3px solid #fff8; }
+
+/* Panels */
+.panel {
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding-block: 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 10px;
+}
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+
+.btn {
+  border: 2px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 14px; padding: 10px 14px; font-weight: 700; min-height: 48px;
+}
+.btn.primary { background: var(--kea); border-color: var(--kea); color: var(--on-accent); }
+.btn.flame { background: var(--flame); border-color: var(--flame); color: #fff; }
+.btn.danger { color: var(--t-boiling); border-color: currentColor; }
+.btn.danger.armed { background: var(--t-boiling); color: #fff; border-color: var(--t-boiling); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.big { font: 800 1.35rem/1 var(--display); min-height: 64px; border-radius: 18px; letter-spacing: .01em; }
+
+.tag-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.tag-btn svg { width: 28px; height: 28px; }
+.capture-bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.capture-bar span { display: block; height: 100%; width: 0; background: var(--flame); transition: width .25s linear; }
+
+/* Marco Polo */
+.targets { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.targets::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; border: 2px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: .9rem;
+}
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.chip.found { text-decoration: line-through; opacity: .6; }
+
+.temp {
+  --t: var(--t-cool);
+  background: var(--t); color: #fff; border-radius: 20px; padding: 12px 16px;
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center;
+  transition: background-color .6s ease;
+}
+.temp[data-band="freezing"] { --t: var(--t-freezing); }
+.temp[data-band="cold"] { --t: var(--t-cold); }
+.temp[data-band="cool"] { --t: var(--t-cool); }
+.temp[data-band="warm"] { --t: var(--t-warm); }
+.temp[data-band="hot"] { --t: var(--t-hot); }
+.temp[data-band="boiling"] { --t: var(--t-boiling); }
+.temp-word { font: 800 2.1rem/1 var(--display); text-transform: uppercase; letter-spacing: .03em; }
+.temp-sub { font-size: .95rem; font-weight: 700; opacity: .95; font-variant-numeric: tabular-nums; }
+.arrow-box {
+  grid-row: 1 / span 2; grid-column: 2;
+  width: 76px; height: 76px; border-radius: 50%; background: rgb(255 255 255 / .2);
+  display: grid; place-items: center;
+}
+.arrow-box svg { width: 54px; height: 54px; transition: transform .3s ease; }
+.arrow-box .dir { font: 800 1.1rem/1 var(--display); }
+.trend { font-weight: 800; }
+
+.clue {
+  border: 2px dashed var(--line); border-radius: 14px; padding: 10px 12px;
+  font-size: 1.05rem; min-height: 3.2em;
+}
+.clue.thinking { color: var(--muted); font-style: italic; }
+.clue .who { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; font-style: normal; }
+.toggles { display: flex; gap: 14px; flex-wrap: wrap; font-size: .9rem; }
+.toggles label { display: flex; align-items: center; gap: 6px; }
+.toggles input { width: 20px; height: 20px; accent-color: var(--kea); }
+
+.empty { text-align: center; padding-block: 8px; }
+
+/* Dialogs */
+dialog {
+  border: 0; padding: 0; background: var(--surface); color: var(--ink);
+  width: min(560px, 100%); max-width: 100%; max-height: 88vh;
+  margin: auto auto 0; border-radius: 22px 22px 0 0;
+}
+dialog::backdrop { background: rgb(10 14 8 / .55); }
+.sheet { padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 12px; }
+.sheet h2 { margin: 0; font: 800 1.5rem/1.1 var(--display); text-wrap: balance; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field > span { font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.field input, .field textarea, .field select {
+  border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--bg); width: 100%;
+}
+.field textarea { min-height: 84px; resize: vertical; }
+.field small { color: var(--muted); }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.list button {
+  width: 100%; text-align: left; border: 2px solid var(--line); background: var(--bg); color: var(--ink);
+  border-radius: 12px; padding: 10px 12px; display: flex; gap: 10px; align-items: center;
+}
+.list button[aria-current="true"] { border-color: var(--kea); }
+.list .num {
+  flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--flame); color: #fff;
+  display: grid; place-items: center; font: 800 .85rem/1 var(--display);
+}
+.list .num.found { background: #6c7a63; }
+.list .txt { min-width: 0; flex: 1; }
+.list .txt b, .list .txt span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .txt span { font-size: .85rem; color: var(--muted); }
+.coords { font: .82rem/1.3 ui-monospace, "Cascadia Mono", Menlo, monospace; color: var(--muted); }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  z-index: 2000; background: var(--ink); color: var(--surface);
+  padding: 10px 16px; border-radius: 12px; font-weight: 700; max-width: calc(100% - 32px);
+  box-shadow: 0 4px 14px rgb(0 0 0 / .3);
+}
+.celebrate {
+  position: fixed; inset: 0; z-index: 1500; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--t-boiling) 88%, transparent); color: #fff; text-align: center;
+  padding: 24px;
+}
+.celebrate h2 { font: 800 3.4rem/1 var(--display); margin: 0 0 8px; }
+.celebrate p { font-size: 1.2rem; margin: 0 0 20px; }
+@media (prefers-reduced-motion: no-preference) {
+  .celebrate h2 { animation: pop .6s cubic-bezier(.2, 1.6, .5, 1); }
+  .pulse { animation: pulse 1.2s ease-in-out infinite; }
+}
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes pulse { 50% { transform: scale(1.04); } }
+@media (min-height: 760px) { .temp-word { font-size: 2.5rem; } }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <button class="hunt-name" id="huntBtn" aria-label="Choose hunt">
+    <span id="huntTitle">Kea Hunt</span>
+    <small id="huntMeta">0 spots</small>
+  </button>
+  <div class="modes" role="group" aria-label="Mode">
+    <button id="modeRecord" aria-pressed="true">Record</button>
+    <button id="modeHunt" aria-pressed="false">Marco Polo</button>
+  </div>
+  <button class="icon-btn" id="settingsBtn" aria-label="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </button>
+</header>
+
+<div class="map-wrap">
+  <div id="map" aria-label="Map"></div>
+  <div class="gps-chip" id="gpsChip" data-q="none"><i></i><span id="gpsText">Finding you…</span></div>
+  <div class="map-tools">
+    <button id="followBtn" aria-pressed="true" aria-label="Follow my position">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+    </button>
+    <button id="layerBtn" aria-pressed="false" aria-label="Satellite view">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></svg>
+    </button>
+    <button id="fitBtn" aria-label="Show all spots">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Record mode -->
+<section class="panel" id="panelRecord">
+  <button class="btn flame big tag-btn" id="tagBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><path d="M12 7v5M9.5 9.5h5"/></svg>
+    <span id="tagLabel">Tag this spot</span>
+  </button>
+  <div class="capture-bar" id="captureBar" hidden><span></span></div>
+  <div class="row small">
+    <span class="grow muted" id="recordHint">Stand right on the spot, then tap. It averages a few GPS readings. You can also long-press the map to drop a spot.</span>
+    <button class="btn" id="listBtn">Spots</button>
+  </div>
+</section>
+
+<!-- Marco Polo mode -->
+<section class="panel" id="panelHunt" hidden>
+  <div class="targets" id="targets" role="group" aria-label="Spot to find"></div>
+  <div id="huntBody">
+    <div class="temp" id="temp" data-band="cool">
+      <div class="temp-word" id="tempWord">—</div>
+      <div class="arrow-box" id="arrowBox" aria-hidden="true">
+        <svg id="arrow" viewBox="0 0 24 24" fill="#fff"><path d="M12 2 20 20 12 16 4 20z"/></svg>
+        <span class="dir" id="dirText" hidden></span>
+      </div>
+      <div class="temp-sub"><span id="distText">Waiting for GPS</span> · <span class="trend" id="trendText"></span></div>
+    </div>
+  </div>
+  <div class="row">
+    <button class="btn primary big grow" id="marcoBtn">Marco!</button>
+    <button class="btn big" id="clueBtn">Clue</button>
+    <button class="btn big" id="foundBtn">Found</button>
+  </div>
+  <div class="clue" id="clue" hidden></div>
+  <div class="toggles">
+    <label><input type="checkbox" id="hideSpots"> Hide spots on map</label>
+    <label><input type="checkbox" id="autoClue"> Auto clues</label>
+    <label><input type="checkbox" id="voiceOn"> Speak</label>
+    <button class="btn small" id="compassBtn" style="min-height:36px;padding:4px 10px">Use compass</button>
+  </div>
+  <div class="empty muted" id="huntEmpty" hidden>No spots to find yet. Switch to <b>Record</b> and tag some.</div>
+</section>
+
+<!-- Save / edit spot -->
+<dialog id="spotDlg">
+  <form class="sheet" id="spotForm" method="dialog">
+    <h2 id="spotDlgTitle">New spot</h2>
+    <label class="field"><span>Name</span><input id="spotName" maxlength="60" autocomplete="off"></label>
+    <label class="field"><span>Notes for clues</span>
+      <textarea id="spotHint" maxlength="600" placeholder="What's hidden here and what's nearby. E.g. 'Orange token tucked behind the mossy log, next to the big rimu by the stream.'"></textarea>
+      <small>Claude uses these notes to write clues. The kids never see them directly.</small>
+    </label>
+    <div class="coords" id="spotCoords"></div>
+    <div class="row">
+      <button type="button" class="btn danger" id="spotDelete">Delete</button>
+      <button type="button" class="btn" id="spotRetag">Re-tag here</button>
+      <span class="grow"></span>
+      <button type="button" class="btn" id="spotCancel">Cancel</button>
+      <button type="submit" class="btn primary" id="spotSave">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Spot list -->
+<dialog id="listDlg">
+  <div class="sheet">
+    <h2>Spots in this hunt</h2>
+    <ul class="list" id="spotList"></ul>
+    <p class="muted small" id="listEmpty" hidden>No spots yet. Walk to a spot and tap <b>Tag this spot</b>.</p>
+    <div class="row"><span class="grow"></span><button class="btn" data-close>Close</button></div>
+  </div>
+</dialog>
+
+<!-- Hunts -->
+<dialog id="huntsDlg">
+  <div class="sheet">
+    <h2>Hunts</h2>
+    <ul class="list" id="huntList"></ul>
+    <label class="field"><span>Name of this hunt</span><input id="huntRename" maxlength="60" autocomplete="off"></label>
+    <div class="row">
+      <button class="btn" id="newHuntBtn">New hunt</button>
+      <button class="btn" id="resetFoundBtn">Reset found</button>
+      <button class="btn danger" id="deleteHuntBtn">Delete hunt</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="exportBtn">Export file</button>
+      <label class="btn" style="display:inline-flex;align-items:center">Import file<input type="file" id="importInput" accept="application/json,.json" hidden></label>
+      <span class="grow"></span>
+      <button class="btn primary" data-close>Done</button>
+    </div>
+    <p class="muted small">Everything is stored only in this phone's browser. Export a file to back a hunt up or move it to another phone.</p>
+  </div>
+</dialog>
+
+<!-- Settings -->
+<dialog id="settingsDlg">
+  <form class="sheet" id="settingsForm" method="dialog">
+    <h2>Settings</h2>
+    <label class="field"><span>Anthropic API key</span>
+      <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+      <small>Needed for Claude clues. Kept only in this browser's local storage and sent only to api.anthropic.com.</small>
+    </label>
+    <label class="field"><span>Clue model</span>
+      <select id="model">
+        <option value="claude-opus-5-5">Claude Opus 5.5 (best clues)</option>
+        <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+        <option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest, cheapest)</option>
+      </select>
+    </label>
+    <label class="field"><span>Group</span>
+      <select id="group">
+        <option value="Keas (ages 5 to 8)">Keas (5–8)</option>
+        <option value="Cubs (ages 8 to 11)">Cubs (8–11)</option>
+        <option value="Scouts (ages 11 to 14)">Scouts (11–14)</option>
+      </select>
+    </label>
+    <div class="row">
+      <button type="button" class="btn" id="testKeyBtn">Test key</button>
+      <span class="grow small muted" id="testKeyOut"></span>
+      <button type="submit" class="btn primary">Done</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="celebrate" id="celebrate" hidden>
+  <div>
+    <h2>Polo! Found it!</h2>
+    <p id="celebrateText"></p>
+    <button class="btn big" id="celebrateNext" style="background:#fff;color:#1d261b;border-color:#fff">Next spot</button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+
+/* ---------- Storage ---------- */
+const LS_STATE = "keaHunt.v1";
+const LS_KEY = "keaHunt.apiKey";
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+function readJSON(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+function saveState() {
+  try { localStorage.setItem(LS_STATE, JSON.stringify(state)); }
+  catch { toast("Couldn't save. Browser storage is full or blocked."); }
+}
+function getKey() { try { return localStorage.getItem(LS_KEY) || ""; } catch { return ""; } }
+function setKey(v) { try { v ? localStorage.setItem(LS_KEY, v) : localStorage.removeItem(LS_KEY); } catch {} }
+
+const defaults = { voice: true, autoClue: true, hideSpots: false, model: "claude-opus-5-5", group: "Keas (ages 5 to 8)", sat: false, mode: "record" };
+let state = readJSON(LS_STATE) || { hunts: [], activeId: null, settings: {} };
+state.settings = Object.assign({}, defaults, state.settings);
+if (!state.hunts.length) addHunt("First hunt");
+if (!hunt()) state.activeId = state.hunts[0].id;
+
+function hunt() { return state.hunts.find((h) => h.id === state.activeId); }
+function addHunt(name) {
+  const h = { id: uid(), name, created: Date.now(), spots: [] };
+  state.hunts.push(h); state.activeId = h.id; saveState(); return h;
+}
+
+/* ---------- Geo maths ---------- */
+const R = 6371000, rad = (d) => d * Math.PI / 180, deg = (r) => r * 180 / Math.PI;
+function dist(a, b) {
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+function bearing(a, b) {
+  const y = Math.sin(rad(b.lng - a.lng)) * Math.cos(rad(b.lat));
+  const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lng - a.lng));
+  return (deg(Math.atan2(y, x)) + 360) % 360;
+}
+const CARD = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+const cardinal = (b) => CARD[Math.round(b / 45) % 8];
+const SHORT = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+function relative(diff) {
+  diff = (diff + 360) % 360;
+  if (diff < 25 || diff > 335) return "straight ahead";
+  if (diff < 70) return "ahead and a bit to the right";
+  if (diff < 115) return "to the right";
+  if (diff < 160) return "behind, on the right";
+  if (diff < 200) return "behind";
+  if (diff < 245) return "behind, on the left";
+  if (diff < 290) return "to the left";
+  return "ahead and a bit to the left";
+}
+const BANDS = [
+  { max: 5, id: "boiling", word: "Boiling!", say: "You're boiling hot! Look all around you!" },
+  { max: 12, id: "hot", word: "Hot", say: "You're hot!" },
+  { max: 25, id: "warm", word: "Warm", say: "You're warm." },
+  { max: 50, id: "cool", word: "Cool", say: "You're cool." },
+  { max: 100, id: "cold", word: "Cold", say: "You're cold." },
+  { max: Infinity, id: "freezing", word: "Freezing", say: "Brrr, you're freezing!" },
+];
+const bandFor = (d) => BANDS.find((b) => d <= b.max);
+const bandIndex = (b) => BANDS.indexOf(b);
+const steps = (m) => Math.max(1, Math.round(m / 0.6));
+function fmtDist(m) { return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`; }
+
+/* ---------- Map ---------- */
+const map = L.map("map", { zoomControl: false, attributionControl: true }).setView([-41.0, 174.0], 5);
+const tiles = {
+  street: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 20, maxNativeZoom: 19, attribution: "© OpenStreetMap" }),
+  sat: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19, attribution: "Imagery © Esri" }),
+};
+function applyLayer() {
+  const sat = state.settings.sat;
+  map.removeLayer(sat ? tiles.street : tiles.sat);
+  (sat ? tiles.sat : tiles.street).addTo(map);
+  $("#layerBtn").setAttribute("aria-pressed", String(sat));
+}
+applyLayer();
+
+const spotLayer = L.layerGroup().addTo(map);
+let meMarker = null, meCircle = null, targetLine = null;
+let follow = true;
+
+function renderSpots() {
+  spotLayer.clearLayers();
+  const h = hunt(); if (!h) return;
+  const hide = mode === "hunt" && state.settings.hideSpots;
+  h.spots.forEach((s, i) => {
+    if (hide && !s.found) return;
+    const cls = s.found ? "found" : (mode === "hunt" && s.id === targetId ? "target" : "");
+    const icon = L.divIcon({ className: "", html: `<div class="pin ${cls}"><b>${i + 1}</b></div>`, iconSize: [30, 30], iconAnchor: [15, 30] });
+    L.marker([s.lat, s.lng], { icon, title: s.name })
+      .on("click", () => { if (mode === "record") openSpot(s.id); else { setTarget(s.id); } })
+      .addTo(spotLayer);
+  });
+  const total = h.spots.length, found = h.spots.filter((s) => s.found).length;
+  $("#huntTitle").textContent = h.name;
+  $("#huntMeta").textContent = total ? `${total} spot${total === 1 ? "" : "s"} · ${found} found` : "No spots yet";
+}
+function fitAll() {
+  const h = hunt(); const pts = h.spots.map((s) => [s.lat, s.lng]);
+  if (me) pts.push([me.lat, me.lng]);
+  if (!pts.length) return toast("Nothing to show yet");
+  follow = false; $("#followBtn").setAttribute("aria-pressed", "false");
+  if (pts.length === 1) map.setView(pts[0], 18); else map.fitBounds(pts, { padding: [40, 40], maxZoom: 19 });
+}
+map.on("dragstart", () => { follow = false; $("#followBtn").setAttribute("aria-pressed", "false"); });
+$("#followBtn").onclick = () => {
+  follow = true; $("#followBtn").setAttribute("aria-pressed", "true");
+  if (me) map.setView([me.lat, me.lng], Math.max(map.getZoom(), 18));
+};
+$("#layerBtn").onclick = () => { state.settings.sat = !state.settings.sat; saveState(); applyLayer(); };
+$("#fitBtn").onclick = fitAll;
+map.on("contextmenu", (e) => {
+  if (mode !== "record") return;
+  openSpot(null, { lat: e.latlng.lat, lng: e.latlng.lng, acc: null });
+});
+
+/* ---------- GPS ---------- */
+let me = null;            // latest fix {lat,lng,acc,heading,speed,t}
+let firstFix = true;
+const capture = { on: false, readings: [], start: 0, timer: null };
+
+function onPos(p) {
+  const c = p.coords;
+  me = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, heading: c.heading, speed: c.speed, t: p.timestamp };
+  const ll = [me.lat, me.lng];
+  if (!meMarker) {
+    meCircle = L.circle(ll, { radius: me.acc, color: "#1f6fe0", weight: 1, fillOpacity: 0.12, interactive: false }).addTo(map);
+    meMarker = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#1f6fe0", fillOpacity: 1, interactive: false }).addTo(map);
+  } else { meMarker.setLatLng(ll); meCircle.setLatLng(ll).setRadius(me.acc); }
+  if (firstFix) { map.setView(ll, 18); firstFix = false; }
+  else if (follow) map.panTo(ll, { animate: true });
+
+  const q = me.acc <= 6 ? "good" : me.acc <= 15 ? "ok" : "poor";
+  $("#gpsChip").dataset.q = q;
+  $("#gpsText").textContent = `GPS ±${Math.round(me.acc)} m`;
+  if (capture.on) capture.readings.push({ ...me });
+  if (mode === "hunt") updateHunt();
+}
+function onPosErr(e) {
+  $("#gpsChip").dataset.q = "poor";
+  $("#gpsText").textContent = e.code === 1 ? "Location blocked" : "No GPS signal";
+  if (e.code === 1) toast("Location is blocked. Allow location for this site in your browser settings.");
+}
+if ("geolocation" in navigator) {
+  navigator.geolocation.watchPosition(onPos, onPosErr, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+} else onPosErr({ code: 2 });
+
+/* ---------- Record mode ---------- */
+const CAPTURE_MS = 8000;
+$("#tagBtn").onclick = () => {
+  if (capture.on) return finishCapture();
+  if (!me) return toast("Still waiting for a GPS fix");
+  capture.on = true; capture.readings = [{ ...me }]; capture.start = Date.now();
+  $("#tagLabel").textContent = "Hold still… tap to finish";
+  $("#captureBar").hidden = false;
+  keepAwake();
+  capture.timer = setInterval(() => {
+    const el = Date.now() - capture.start;
+    $("#captureBar span").style.width = Math.min(100, el / CAPTURE_MS * 100) + "%";
+    const good = capture.readings.filter((r) => r.acc <= 5).length;
+    if (el >= CAPTURE_MS || good >= 4) finishCapture();
+  }, 250);
+};
+function finishCapture() {
+  clearInterval(capture.timer); capture.on = false;
+  $("#tagLabel").textContent = "Tag this spot";
+  $("#captureBar").hidden = true; $("#captureBar span").style.width = "0";
+  // Weight each reading by 1/accuracy² so good fixes dominate.
+  const rs = capture.readings.filter((r) => r.acc <= Math.min(...capture.readings.map((x) => x.acc)) * 3);
+  let w = 0, lat = 0, lng = 0;
+  rs.forEach((r) => { const k = 1 / Math.max(1, r.acc) ** 2; w += k; lat += r.lat * k; lng += r.lng * k; });
+  const acc = Math.min(...rs.map((r) => r.acc));
+  const pos = { lat: lat / w, lng: lng / w, acc };
+  if (retagId) { applyRetag(pos); return; }
+  openSpot(null, pos);
+  vibrate(60);
+}
+
+/* ---------- Spot dialog ---------- */
+let editingId = null, pendingPos = null, retagId = null;
+function openSpot(id, pos) {
+  const h = hunt();
+  editingId = id; pendingPos = pos || null;
+  const s = id ? h.spots.find((x) => x.id === id) : null;
+  $("#spotDlgTitle").textContent = s ? "Edit spot" : "New spot";
+  $("#spotName").value = s ? s.name : `Spot ${h.spots.length + 1}`;
+  $("#spotHint").value = s ? s.hint || "" : "";
+  const p = s || pos;
+  $("#spotCoords").textContent = `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}` + (p.acc ? `  ±${Math.round(p.acc)} m` : "  (placed on map)");
+  $("#spotDelete").hidden = !s; $("#spotRetag").hidden = !s;
+  disarm($("#spotDelete"), "Delete");
+  $("#spotDlg").showModal();
+}
+$("#spotForm").onsubmit = (e) => {
+  e.preventDefault();
+  const h = hunt();
+  const name = $("#spotName").value.trim() || `Spot ${h.spots.length + 1}`;
+  const hint = $("#spotHint").value.trim();
+  if (editingId) Object.assign(h.spots.find((x) => x.id === editingId), { name, hint });
+  else h.spots.push({ id: uid(), name, hint, ...pendingPos, created: Date.now(), found: null });
+  saveState(); renderSpots(); renderTargets();
+  $("#spotDlg").close();
+  toast(editingId ? "Saved" : `Tagged “${name}”`);
+};
+$("#spotCancel").onclick = () => $("#spotDlg").close();
+armable($("#spotDelete"), "Delete", () => {
+  const h = hunt(); h.spots = h.spots.filter((x) => x.id !== editingId);
+  if (targetId === editingId) targetId = null;
+  saveState(); renderSpots(); renderTargets(); $("#spotDlg").close(); toast("Spot deleted");
+});
+$("#spotRetag").onclick = () => {
+  if (!me) return toast("Still waiting for a GPS fix");
+  retagId = editingId; $("#spotDlg").close();
+  setMode("record"); $("#tagBtn").click();
+  toast("Hold still to re-tag this spot");
+};
+function applyRetag(pos) {
+  const s = hunt().spots.find((x) => x.id === retagId); retagId = null;
+  if (!s) return;
+  Object.assign(s, pos); saveState(); renderSpots(); toast(`Moved “${s.name}” here`);
+}
+
+/* ---------- Spot list ---------- */
+$("#listBtn").onclick = () => {
+  const ul = $("#spotList"); ul.textContent = "";
+  const h = hunt();
+  h.spots.forEach((s, i) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    const d = me ? ` · ${fmtDist(dist(me, s))} away` : "";
+    b.innerHTML = `<span class="num ${s.found ? "found" : ""}">${i + 1}</span><span class="txt"><b></b><span></span></span>`;
+    b.querySelector("b").textContent = s.name + (s.found ? " ✓" : "");
+    b.querySelector(".txt span").textContent = (s.hint || "No notes") + d;
+    b.onclick = () => { $("#listDlg").close(); map.setView([s.lat, s.lng], 19); follow = false; $("#followBtn").setAttribute("aria-pressed", "false"); openSpot(s.id); };
+    li.append(b); ul.append(li);
+  });
+  $("#listEmpty").hidden = h.spots.length > 0;
+  $("#listDlg").showModal();
+};
+
+/* ---------- Hunts dialog ---------- */
+function renderHuntList() {
+  const ul = $("#huntList"); ul.textContent = "";
+  state.hunts.forEach((h) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.setAttribute("aria-current", String(h.id === state.activeId));
+    b.innerHTML = `<span class="txt"><b></b><span></span></span>`;
+    b.querySelector("b").textContent = h.name;
+    b.querySelector(".txt span").textContent = `${h.spots.length} spots · ${new Date(h.created).toLocaleDateString("en-NZ")}`;
+    b.onclick = () => { state.activeId = h.id; targetId = null; saveState(); afterHuntChange(); };
+    li.append(b); ul.append(li);
+  });
+  $("#huntRename").value = hunt().name;
+  disarm($("#deleteHuntBtn"), "Delete hunt");
+}
+function afterHuntChange() { renderHuntList(); renderSpots(); renderTargets(); if (mode === "hunt") updateHunt(); fitAll(); }
+$("#huntBtn").onclick = () => { renderHuntList(); $("#huntsDlg").showModal(); };
+$("#huntRename").oninput = (e) => { hunt().name = e.target.value.trim() || "Untitled hunt"; saveState(); renderSpots(); };
+$("#newHuntBtn").onclick = () => { addHunt(`Hunt ${new Date().toLocaleDateString("en-NZ")}`); targetId = null; afterHuntChange(); $("#huntRename").focus(); $("#huntRename").select(); };
+$("#resetFoundBtn").onclick = () => { hunt().spots.forEach((s) => (s.found = null)); saveState(); renderSpots(); renderTargets(); clueLog = {}; toast("All spots are hidden again"); };
+armable($("#deleteHuntBtn"), "Delete hunt", () => {
+  state.hunts = state.hunts.filter((h) => h.id !== state.activeId);
+  if (!state.hunts.length) addHunt("First hunt");
+  state.activeId = state.hunts[0].id; targetId = null; saveState(); afterHuntChange(); toast("Hunt deleted");
+});
+$("#exportBtn").onclick = () => {
+  const h = hunt();
+  const blob = new Blob([JSON.stringify({ app: "kea-hunt", version: 1, hunt: h }, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${h.name.replace(/[^\w\- ]+/g, "").trim() || "hunt"}.json`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+};
+$("#importInput").onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    const src = j.hunt || j;
+    if (!Array.isArray(src.spots)) throw new Error();
+    const h = { id: uid(), name: (src.name || "Imported hunt") + "", created: Date.now(),
+      spots: src.spots.filter((s) => isFinite(s.lat) && isFinite(s.lng)).map((s) => ({ id: uid(), name: String(s.name || "Spot"), hint: String(s.hint || ""), lat: +s.lat, lng: +s.lng, acc: s.acc ?? null, created: s.created || Date.now(), found: null })) };
+    state.hunts.push(h); state.activeId = h.id; saveState(); afterHuntChange();
+    toast(`Imported “${h.name}” with ${h.spots.length} spots`);
+  } catch { toast("That file isn't a Kea Hunt export"); }
+};
+
+/* ---------- Settings ---------- */
+$("#settingsBtn").onclick = () => {
+  $("#apiKey").value = getKey(); $("#model").value = state.settings.model; $("#group").value = state.settings.group;
+  $("#testKeyOut").textContent = "";
+  $("#settingsDlg").showModal();
+};
+$("#settingsForm").onsubmit = (e) => { e.preventDefault(); saveSettings(); $("#settingsDlg").close(); };
+function saveSettings() {
+  setKey($("#apiKey").value.trim());
+  state.settings.model = $("#model").value; state.settings.group = $("#group").value; saveState();
+}
+$("#testKeyBtn").onclick = async () => {
+  saveSettings();
+  $("#testKeyOut").textContent = "Checking…";
+  try { const t = await askClaude("Reply with exactly: Kia ora! Ready to hunt."); $("#testKeyOut").textContent = t; }
+  catch (err) { $("#testKeyOut").textContent = claudeErr(err); }
+};
+document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = () => b.closest("dialog").close()));
+document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
+
+/* ---------- Modes ---------- */
+let mode = "record";
+function setMode(m) {
+  mode = m; state.settings.mode = m; saveState();
+  $("#modeRecord").setAttribute("aria-pressed", String(m === "record"));
+  $("#modeHunt").setAttribute("aria-pressed", String(m === "hunt"));
+  $("#panelRecord").hidden = m !== "record";
+  $("#panelHunt").hidden = m !== "hunt";
+  if (m === "hunt") { keepAwake(); renderTargets(); updateHunt(); }
+  else if (targetLine) { map.removeLayer(targetLine); targetLine = null; }
+  renderSpots();
+  setTimeout(() => map.invalidateSize(), 50);
+}
+$("#modeRecord").onclick = () => setMode("record");
+$("#modeHunt").onclick = () => setMode("hunt");
+
+/* ---------- Marco Polo ---------- */
+let targetId = null;
+let distLog = [];          // recent {t, d} to the target, for warmer/colder
+let lastBand = null;
+let clueLog = {};          // spotId -> [clues]
+let lastAutoClue = 0;
+let lastMarcoDist = null;
+
+function unfound() { return hunt().spots.filter((s) => !s.found); }
+function target() { return hunt().spots.find((s) => s.id === targetId); }
+function pickNearest() {
+  const list = unfound(); if (!list.length) return null;
+  if (!me) return list[0].id;
+  return list.reduce((a, b) => (dist(me, a) <= dist(me, b) ? a : b)).id;
+}
+function setTarget(id) {
+  targetId = id; distLog = []; lastBand = null; lastMarcoDist = null;
+  $("#clue").hidden = true;
+  renderTargets(); renderSpots(); updateHunt();
+}
+function renderTargets() {
+  const h = hunt(), box = $("#targets"); box.textContent = "";
+  if (!target() || target().found) targetId = pickNearest();
+  h.spots.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.className = "chip" + (s.found ? " found" : "");
+    b.textContent = `${i + 1}. ${s.name}`;
+    b.setAttribute("aria-pressed", String(s.id === targetId));
+    b.onclick = () => setTarget(s.id);
+    box.append(b);
+  });
+  const none = !h.spots.length;
+  $("#huntEmpty").hidden = !none;
+  ["#huntBody", "#marcoBtn", "#clueBtn", "#foundBtn"].forEach((s) => ($(s).closest(".row") || $(s)).hidden = none);
+  if (!none && !unfound().length) {
+    $("#tempWord").textContent = "All found!";
+    $("#distText").textContent = "Tap Hunts → Reset found to play again";
+    $("#trendText").textContent = "";
+    $("#temp").dataset.band = "cool";
+  }
+}
+
+function heading() {
+  if (compassHeading != null) return compassHeading;
+  if (me && me.heading != null && !isNaN(me.heading) && (me.speed || 0) > 0.6) return me.heading;
+  return null;
+}
+function snapshot() {
+  const t = target(); if (!t || !me) return null;
+  const d = dist(me, t), b = bearing(me, t), hd = heading();
+  return { t, d, b, band: bandFor(d), rel: hd == null ? null : relative(b - hd), hd };
+}
+function trend() {
+  if (distLog.length < 2) return 0;
+  const now = distLog[distLog.length - 1];
+  const past = distLog.find((x) => now.t - x.t <= 8000) || distLog[0];
+  const delta = now.d - past.d;
+  return Math.abs(delta) < Math.max(1.5, (me?.acc || 5) * 0.25) ? 0 : delta < 0 ? -1 : 1;
+}
+function updateHunt() {
+  if (mode !== "hunt") return;
+  const s = snapshot();
+  if (!s) {
+    if (target()) { $("#tempWord").textContent = "—"; $("#distText").textContent = "Waiting for GPS"; }
+    return;
+  }
+  distLog.push({ t: Date.now(), d: s.d });
+  distLog = distLog.filter((x) => Date.now() - x.t < 20000);
+  const tr = trend();
+  $("#temp").dataset.band = s.band.id;
+  $("#tempWord").textContent = s.band.word;
+  $("#distText").textContent = `${fmtDist(s.d)} (~${steps(s.d)} steps)`;
+  $("#trendText").textContent = tr < 0 ? "warmer ▲" : tr > 0 ? "colder ▼" : "";
+  if (s.hd != null) {
+    $("#arrow").style.display = ""; $("#dirText").hidden = true;
+    $("#arrow").style.transform = `rotate(${(s.b - s.hd + 360) % 360}deg)`;
+  } else {
+    $("#arrow").style.display = "none"; $("#dirText").hidden = false;
+    $("#dirText").textContent = SHORT[Math.round(s.b / 45) % 8];
+  }
+  $("#foundBtn").classList.toggle("pulse", s.band.id === "boiling");
+
+  if (!state.settings.hideSpots) {
+    const ll = [[me.lat, me.lng], [s.t.lat, s.t.lng]];
+    if (targetLine) targetLine.setLatLngs(ll);
+    else targetLine = L.polyline(ll, { color: "#e0661a", weight: 3, dashArray: "6 8", interactive: false }).addTo(map);
+  } else if (targetLine) { map.removeLayer(targetLine); targetLine = null; }
+
+  // Entering a closer band: buzz, and maybe fetch a fresh clue.
+  const bi = bandIndex(s.band);
+  if (lastBand != null && bi < lastBand) {
+    vibrate([80, 60, 80]);
+    speak(s.band.say);
+    if (state.settings.autoClue && getKey() && Date.now() - lastAutoClue > 25000 && s.band.id !== "freezing") {
+      lastAutoClue = Date.now(); getClue();
+    }
+  }
+  lastBand = bi;
+}
+
+$("#marcoBtn").onclick = () => {
+  const s = snapshot();
+  if (!s) return toast(target() ? "Still waiting for GPS" : "Pick a spot to find");
+  let msg = `Polo! ${s.band.say}`;
+  if (lastMarcoDist != null) {
+    const dd = s.d - lastMarcoDist;
+    if (dd < -2) msg += " Warmer than before!";
+    else if (dd > 2) msg += " Colder than before.";
+    else msg += " About the same.";
+  }
+  if (s.rel) msg += ` It's ${s.rel}.`;
+  lastMarcoDist = s.d;
+  // More buzzes the closer they are: one when freezing, six when boiling.
+  vibrate(Array.from({ length: BANDS.length - bandIndex(s.band) }).flatMap(() => [120, 80]));
+  speak(msg);
+  toast(msg);
+};
+$("#foundBtn").onclick = () => {
+  const t = target(); if (!t) return;
+  t.found = Date.now(); saveState();
+  vibrate([100, 50, 100, 50, 300]);
+  speak(`Polo! You found ${t.name}! Well done!`);
+  const left = unfound().length;
+  $("#celebrateText").textContent = left ? `${t.name} found. ${left} to go.` : `${t.name} found. That's every spot!`;
+  $("#celebrateNext").textContent = left ? "Next spot" : "Finish";
+  $("#celebrate").hidden = false;
+};
+$("#celebrateNext").onclick = () => { $("#celebrate").hidden = true; setTarget(pickNearest()); };
+
+/* Toggles */
+const toggles = { hideSpots: "#hideSpots", autoClue: "#autoClue", voice: "#voiceOn" };
+Object.entries(toggles).forEach(([k, sel]) => {
+  $(sel).checked = !!state.settings[k];
+  $(sel).onchange = (e) => { state.settings[k] = e.target.checked; saveState(); renderSpots(); updateHunt(); };
+});
+
+/* ---------- Compass ---------- */
+let compassHeading = null;
+function onOrient(e) {
+  let h = null;
+  if (typeof e.webkitCompassHeading === "number") h = e.webkitCompassHeading;
+  else if (e.absolute && e.alpha != null) h = 360 - e.alpha;
+  if (h == null) return;
+  const so = (screen.orientation && screen.orientation.angle) || 0;
+  compassHeading = (h + so + 360) % 360;
+  if (mode === "hunt") throttledUpdate();
+}
+let pendingUpdate = false;
+function throttledUpdate() {
+  if (pendingUpdate) return; pendingUpdate = true;
+  requestAnimationFrame(() => { pendingUpdate = false; updateHuntArrowOnly(); });
+}
+function updateHuntArrowOnly() {
+  const s = snapshot(); if (!s || s.hd == null) return;
+  $("#arrow").style.display = ""; $("#dirText").hidden = true;
+  $("#arrow").style.transform = `rotate(${(s.b - s.hd + 360) % 360}deg)`;
+}
+$("#compassBtn").onclick = async () => {
+  try {
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (r !== "granted") return toast("Compass permission was declined");
+    }
+    if ("ondeviceorientationabsolute" in window) window.addEventListener("deviceorientationabsolute", onOrient);
+    else window.addEventListener("deviceorientation", onOrient);
+    $("#compassBtn").hidden = true;
+    toast("Compass on. Hold the phone flat and point it ahead.");
+    setTimeout(() => { if (compassHeading == null) toast("No compass found. The arrow will work once you start walking."); }, 3000);
+  } catch { toast("This phone doesn't share its compass with the browser"); }
+};
+
+/* ---------- Claude clues ---------- */
+async function askClaude(prompt) {
+  const key = getKey();
+  if (!key) throw { code: "nokey" };
+  const model = state.settings.model;
+  const body = { model, max_tokens: 2000, output_config: { effort: "low" }, messages: [{ role: "user", content: prompt }] };
+  const headers = {
+    "content-type": "application/json",
+    "x-api-key": key,
+    "anthropic-version": "2023-06-01",
+    "anthropic-dangerous-direct-browser-access": "true",
+  };
+  if (model !== "claude-haiku-5-5") { body.fallbacks = "default"; headers["anthropic-beta"] = "server-side-fallback-2026-07-01"; }
+  let r;
+  try { r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers, body: JSON.stringify(body) }); }
+  catch { throw { code: "network" }; }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw { code: r.status, message: j.error && j.error.message };
+  if (j.stop_reason === "refusal") throw { code: "refusal" };
+  const text = (j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+  if (!text) throw { code: "empty" };
+  return text;
+}
+function claudeErr(e) {
+  if (e.code === "nokey") return "Add your Anthropic API key in Settings to get clues.";
+  if (e.code === "network") return "No internet connection, so no clue right now.";
+  if (e.code === 401) return "The API key was rejected. Check it in Settings.";
+  if (e.code === 429) return "Too many clues too fast. Wait a moment and try again.";
+  if (e.code === 529 || e.code >= 500) return "Claude is busy right now. Try again shortly.";
+  if (e.code === "refusal" || e.code === "empty") return "Claude couldn't write a clue for that. Try again.";
+  return e.message || `Clue failed (${e.code}).`;
+}
+let clueBusy = false;
+async function getClue() {
+  const s = snapshot();
+  if (!s) return toast(target() ? "Still waiting for GPS" : "Pick a spot to find");
+  if (clueBusy) return;
+  clueBusy = true;
+  const box = $("#clue"); box.hidden = false; box.className = "clue thinking"; box.textContent = "Thinking up a clue…";
+  $("#clueBtn").disabled = true;
+  const prev = clueLog[s.t.id] || [];
+  const tr = trend();
+  const prompt = [
+    `You are helping a Scout leader run a treasure hunt in a New Zealand reserve for ${state.settings.group}.`,
+    `Write ONE clue that helps the group walk to the hidden spot.`,
+    ``,
+    `Spot name: ${s.t.name}`,
+    `Leader's private notes about the spot: ${s.t.hint || "(none)"}`,
+    `Distance from the group: about ${Math.round(s.d)} metres, which is about ${steps(s.d)} big kid steps. Hot/cold level: ${s.band.word}.`,
+    s.rel ? `Direction from where they are facing: ${s.rel}.` : `Direction: towards the ${cardinal(s.b)} (they may not know compass directions, so describe it with landmarks from the notes or the sun if you can).`,
+    tr ? `They are getting ${tr < 0 ? "warmer" : "colder"}.` : "",
+    `GPS accuracy is about ±${Math.round(me.acc)} m.`,
+    prev.length ? `Clues already given (don't repeat these):\n- ${prev.join("\n- ")}` : "",
+    ``,
+    `Rules: one or two short sentences, under 30 words. Use simple words the youngest child in the group would understand. Be playful and encouraging. Give distance in steps, never metres. Don't read the notes out word for word. Hint at the landmarks instead. The closer they are, the more specific the clue can be. When they're very close (Boiling or Hot), point at the exact hiding place from the notes. Reply with only the clue.`,
+  ].filter(Boolean).join("\n");
+  try {
+    const clue = await askClaude(prompt);
+    (clueLog[s.t.id] = prev).push(clue);
+    box.className = "clue"; box.innerHTML = `<span class="who">Clue from Claude</span>`;
+    box.append(clue);
+    speak(clue);
+  } catch (e) {
+    box.className = "clue"; box.textContent = claudeErr(e);
+  } finally { clueBusy = false; $("#clueBtn").disabled = false; }
+}
+$("#clueBtn").onclick = getClue;
+
+/* ---------- Device helpers ---------- */
+function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch {} }
+function speak(text) {
+  if (!state.settings.voice || !("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = speechSynthesis.getVoices().find((v) => /en[-_]NZ/i.test(v.lang)) || speechSynthesis.getVoices().find((v) => /^en/i.test(v.lang));
+    if (v) u.voice = v;
+    u.rate = 1.0; u.pitch = 1.1;
+    speechSynthesis.speak(u);
+  } catch {}
+}
+let wakeLock = null;
+async function keepAwake() {
+  try { if ("wakeLock" in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => (wakeLock = null)); } } catch {}
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && mode === "hunt") keepAwake(); });
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 3500);
+}
+function armable(btn, label, action) {
+  btn.onclick = () => {
+    if (btn.classList.contains("armed")) { disarm(btn, label); action(); return; }
+    btn.classList.add("armed"); btn.textContent = "Tap again to delete";
+    clearTimeout(btn._t); btn._t = setTimeout(() => disarm(btn, label), 3500);
+  };
+}
+function disarm(btn, label) { btn.classList.remove("armed"); btn.textContent = label; clearTimeout(btn._t); }
+
+/* ---------- Boot ---------- */
+renderSpots();
+setMode(state.settings.mode === "hunt" ? "hunt" : "record");
+// Show the hunt's spots until the first GPS fix arrives and centres on you.
+const startSpots = hunt().spots.map((s) => [s.lat, s.lng]);
+if (startSpots.length) map.fitBounds(startSpots, { padding: [40, 40], maxZoom: 18 });
+</script>
+</body>
+</html>
