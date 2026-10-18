@@ -350,7 +350,8 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
     <h2>Spots in this hunt</h2>
     <ul class="list" id="spotList"></ul>
     <p class="muted small" id="listEmpty" hidden>No spots yet. Walk to a spot and tap <b>Tag this spot</b>.</p>
-    <div class="row"><span class="grow"></span><button class="btn" data-close>Close</button></div>
+    <textarea id="trailOut" class="coords" rows="6" readonly hidden style="width:100%;border:2px solid var(--line);border-radius:12px;padding:8px;background:var(--bg)"></textarea>
+    <div class="row"><button class="btn" id="copyTrailBtn">Copy trail</button><span class="grow"></span><button class="btn" data-close>Close</button></div>
   </div>
 </dialog>
 
@@ -432,7 +433,7 @@ function saveState() {
 function getKey() { try { return localStorage.getItem(LS_KEY) || ""; } catch { return ""; } }
 function setKey(v) { try { v ? localStorage.setItem(LS_KEY, v) : localStorage.removeItem(LS_KEY); } catch {} }
 
-const defaults = { voice: true, autoClue: true, hideSpots: false, model: "claude-opus-5-5", group: "Keas (ages 5 to 8)", sat: false, mode: "record" };
+const defaults = { voice: true, autoClue: true, hideSpots: false, model: "claude-opus-5-5", group: "Keas (ages 5 to 8)", base: "cracroft", mode: "record" };
 let state = readJSON(LS_STATE) || { hunts: [], activeId: null, settings: {} };
 state.settings = Object.assign({}, defaults, state.settings);
 if (!state.hunts.length) addHunt("First hunt");
@@ -483,17 +484,46 @@ const bandIndex = (b) => BANDS.indexOf(b);
 const steps = (m) => Math.max(1, Math.round(m / 0.6));
 function fmtDist(m) { return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`; }
 
-/* ---------- Map ---------- */
-const map = L.map("map", { zoomControl: false, attributionControl: true }).setView([-41.0, 174.0], 5);
-const tiles = {
-  street: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 20, maxNativeZoom: 19, attribution: "© OpenStreetMap" }),
-  sat: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19, attribution: "Imagery © Esri" }),
+/* ---------- Cracroft Reserve map ---------- */
+// The A3 print (maps/cracroft_A3_grid.pdf) is Web Mercator, north up. Bounds were found by fitting
+// its yellow reserve outline to OSM way 27208789 (median error ~0.25 m).
+const CRACROFT = {
+  image: "maps/cracroft.jpg",
+  bounds: [[-43.583149780525176, 172.63217188083817], [-43.580141307522354, 172.63530231976145]],
+  // Gridded area in Web Mercator metres: 12 columns (A–L, west to east) × 16 rows (1–16, north to south), 20 m squares.
+  grid: { west: 19217333.912, east: 19217665.007, north: -5400709.733, south: -5401151.292, cols: 12, rows: 16 },
 };
+const MERC_R = 6378137;
+function gridRef(p) {
+  if (!p) return null;
+  const g = CRACROFT.grid;
+  const x = MERC_R * rad(p.lng), y = MERC_R * Math.log(Math.tan(Math.PI / 4 + rad(p.lat) / 2));
+  const c = Math.floor((x - g.west) / (g.east - g.west) * g.cols);
+  const r = Math.floor((g.north - y) / (g.north - g.south) * g.rows);
+  if (c < 0 || c >= g.cols || r < 0 || r >= g.rows) return null;
+  return "ABCDEFGHIJKL"[c] + (r + 1);
+}
+
+/* ---------- Map ---------- */
+const map = L.map("map", { zoomControl: false, attributionControl: true, maxZoom: 21 }).fitBounds(CRACROFT.bounds);
+const tiles = {
+  street: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 21, maxNativeZoom: 19, attribution: "© OpenStreetMap" }),
+  sat: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri" }),
+};
+const cracroftOverlay = L.imageOverlay(CRACROFT.image, CRACROFT.bounds, { attribution: "Cracroft map: LINZ Basemaps CC BY 4.0", interactive: false });
+const BASES = [
+  { id: "cracroft", label: "Cracroft grid map" },
+  { id: "sat", label: "Satellite" },
+  { id: "street", label: "Street map" },
+];
 function applyLayer() {
-  const sat = state.settings.sat;
-  map.removeLayer(sat ? tiles.street : tiles.sat);
-  (sat ? tiles.sat : tiles.street).addTo(map);
-  $("#layerBtn").setAttribute("aria-pressed", String(sat));
+  const base = BASES.some((b) => b.id === state.settings.base) ? state.settings.base : "cracroft";
+  [tiles.street, tiles.sat, cracroftOverlay].forEach((l) => map.removeLayer(l));
+  // The grid map sits on satellite tiles so the edges blend in.
+  (base === "street" ? tiles.street : tiles.sat).addTo(map);
+  if (base === "cracroft") cracroftOverlay.addTo(map);
+  $("#layerBtn").setAttribute("aria-pressed", String(base !== "street"));
+  $("#layerBtn").setAttribute("aria-label", `Map: ${BASES.find((b) => b.id === base).label}. Tap to change.`);
 }
 applyLayer();
 
@@ -529,7 +559,11 @@ $("#followBtn").onclick = () => {
   follow = true; $("#followBtn").setAttribute("aria-pressed", "true");
   if (me) map.setView([me.lat, me.lng], Math.max(map.getZoom(), 18));
 };
-$("#layerBtn").onclick = () => { state.settings.sat = !state.settings.sat; saveState(); applyLayer(); };
+$("#layerBtn").onclick = () => {
+  const i = BASES.findIndex((b) => b.id === state.settings.base);
+  const next = BASES[(i + 1) % BASES.length];
+  state.settings.base = next.id; saveState(); applyLayer(); toast(next.label);
+};
 $("#fitBtn").onclick = fitAll;
 map.on("contextmenu", (e) => {
   if (mode !== "record") return;
@@ -554,7 +588,8 @@ function onPos(p) {
 
   const q = me.acc <= 6 ? "good" : me.acc <= 15 ? "ok" : "poor";
   $("#gpsChip").dataset.q = q;
-  $("#gpsText").textContent = `GPS ±${Math.round(me.acc)} m`;
+  const sq = gridRef(me);
+  $("#gpsText").textContent = (sq ? `You're in ${sq} · ` : "") + `GPS ±${Math.round(me.acc)} m`;
   if (capture.on) capture.readings.push({ ...me });
   if (mode === "hunt") updateHunt();
 }
@@ -608,7 +643,8 @@ function openSpot(id, pos) {
   $("#spotName").value = s ? s.name : `Spot ${h.spots.length + 1}`;
   $("#spotHint").value = s ? s.hint || "" : "";
   const p = s || pos;
-  $("#spotCoords").textContent = `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}` + (p.acc ? `  ±${Math.round(p.acc)} m` : "  (placed on map)");
+  const sq = gridRef(p);
+  $("#spotCoords").textContent = (sq ? `Square ${sq} · ` : "") + `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}` + (p.acc ? `  ±${Math.round(p.acc)} m` : "  (placed on map)");
   $("#spotDelete").hidden = !s; $("#spotRetag").hidden = !s;
   disarm($("#spotDelete"), "Delete");
   $("#spotDlg").showModal();
@@ -651,13 +687,25 @@ $("#listBtn").onclick = () => {
     const b = document.createElement("button");
     const d = me ? ` · ${fmtDist(dist(me, s))} away` : "";
     b.innerHTML = `<span class="num ${s.found ? "found" : ""}">${i + 1}</span><span class="txt"><b></b><span></span></span>`;
-    b.querySelector("b").textContent = s.name + (s.found ? " ✓" : "");
+    const sq = gridRef(s);
+    b.querySelector("b").textContent = (sq ? `${sq} · ` : "") + s.name + (s.found ? " ✓" : "");
     b.querySelector(".txt span").textContent = (s.hint || "No notes") + d;
     b.onclick = () => { $("#listDlg").close(); map.setView([s.lat, s.lng], 19); follow = false; $("#followBtn").setAttribute("aria-pressed", "false"); openSpot(s.id); };
     li.append(b); ul.append(li);
   });
   $("#listEmpty").hidden = h.spots.length > 0;
+  $("#copyTrailBtn").hidden = !h.spots.length;
   $("#listDlg").showModal();
+};
+// The trail as grid squares, in tagging order, ready to paste into a message or print.
+function trailText() {
+  const h = hunt();
+  return [`${h.name}: Cracroft Reserve grid trail`, ...h.spots.map((s, i) => `${i + 1}. ${gridRef(s) || "off map"}  ${s.name}`)].join("\n");
+}
+$("#copyTrailBtn").onclick = async () => {
+  const text = trailText();
+  try { await navigator.clipboard.writeText(text); toast("Trail copied"); }
+  catch { $("#trailOut").hidden = false; $("#trailOut").value = text; $("#trailOut").select(); toast("Select and copy the trail below"); }
 };
 
 /* ---------- Hunts dialog ---------- */
@@ -816,7 +864,8 @@ function updateHunt() {
   const tr = trend();
   $("#temp").dataset.band = s.band.id;
   $("#tempWord").textContent = s.band.word;
-  $("#distText").textContent = `${fmtDist(s.d)} (~${steps(s.d)} steps)`;
+  const tSq = gridRef(s.t), mSq = gridRef(me);
+  $("#distText").textContent = `${fmtDist(s.d)} (~${steps(s.d)} steps)` + (tSq ? ` · go to ${tSq}` : "") + (mSq ? ` · you're in ${mSq}` : "");
   $("#trendText").textContent = tr < 0 ? "warmer ▲" : tr > 0 ? "colder ▼" : "";
   if (s.hd != null) {
     $("#arrow").style.display = ""; $("#dirText").hidden = true;
@@ -968,6 +1017,7 @@ async function getClue() {
     s.rel ? `Direction from where they are facing: ${s.rel}.` : `Direction: towards the ${cardinal(s.b)} (they may not know compass directions, so describe it with landmarks from the notes or the sun if you can).`,
     tr ? `They are getting ${tr < 0 ? "warmer" : "colder"}.` : "",
     `GPS accuracy is about ±${Math.round(me.acc)} m.`,
+    gridRef(s.t) ? `The group carries a printed grid map: columns A to L run west to east, rows 1 to 16 run north to south, and each square is 20 m. The spot is in square ${gridRef(s.t)}${gridRef(me) ? ` and the group is in square ${gridRef(me)}` : ""}. When they're Cool or further away, you can tell them which square to head for.` : "",
     prev.length ? `Clues already given (don't repeat these):\n- ${prev.join("\n- ")}` : "",
     ``,
     `Rules: one or two short sentences, under 30 words. Use simple words the youngest child in the group would understand. Be playful and encouraging. Give distance in steps, never metres. Don't read the notes out word for word. Hint at the landmarks instead. The closer they are, the more specific the clue can be. When they're very close (Boiling or Hot), point at the exact hiding place from the notes. Reply with only the clue.`,
@@ -1019,9 +1069,8 @@ function disarm(btn, label) { btn.classList.remove("armed"); btn.textContent = l
 /* ---------- Boot ---------- */
 renderSpots();
 setMode(state.settings.mode === "hunt" ? "hunt" : "record");
-// Show the hunt's spots until the first GPS fix arrives and centres on you.
-const startSpots = hunt().spots.map((s) => [s.lat, s.lng]);
-if (startSpots.length) map.fitBounds(startSpots, { padding: [40, 40], maxZoom: 18 });
+// Show the Cracroft map until the first GPS fix arrives and centres on you.
+map.fitBounds(CRACROFT.bounds);
 </script>
 </body>
 </html>
