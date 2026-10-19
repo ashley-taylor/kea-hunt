@@ -131,15 +131,12 @@ button { cursor: pointer; }
   padding-right: max(10px, env(safe-area-inset-right, 0px));
   display: flex; flex-direction: column; gap: 8px; pointer-events: none;
 }
-.dock-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.dock-row { display: flex; justify-content: flex-end; }
 .dock-row > *, .hunt-card { pointer-events: auto; }
-.modes {
-  display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / .22);
-}
+.modes { display: flex; background: var(--bg); border: 2px solid var(--line); border-radius: 999px; padding: 3px; }
 .modes button {
-  border: 0; background: none; color: var(--ink); border-radius: 999px;
-  padding: 9px 14px; font-weight: 700; font-size: .9rem; white-space: nowrap;
+  flex: 1; border: 0; background: none; color: var(--ink); border-radius: 999px;
+  padding: 10px 14px; font-weight: 700; white-space: nowrap;
 }
 .modes button[aria-pressed="true"] { background: var(--kea); color: var(--on-accent); }
 .tag-fab {
@@ -210,15 +207,9 @@ button { cursor: pointer; }
 .arrow-box .dir { font: 800 1.1rem/1 var(--display); }
 .trend { font-weight: 800; }
 
-.clue {
-  border: 2px dashed var(--line); border-radius: 14px; padding: 8px 12px;
-  font-size: 1.05rem; max-height: 7.5em; overflow-y: auto;
-}
-.clue.thinking { color: var(--muted); font-style: italic; }
-.clue .who { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; font-style: normal; }
 .toggles { display: flex; gap: 14px; flex-wrap: wrap; font-size: .9rem; }
 .toggles label { display: flex; align-items: center; gap: 6px; }
-.toggles input { width: 20px; height: 20px; accent-color: var(--kea); }
+.field .toggles input { width: 22px; height: 22px; flex: none; accent-color: var(--kea); }
 
 .empty { text-align: center; padding-block: 8px; }
 
@@ -331,19 +322,13 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
           <div class="temp-sub"><span id="distText">Waiting for GPS</span> <span class="trend" id="trendText"></span></div>
         </div>
       </div>
-      <div class="clue" id="clue" hidden></div>
       <div class="hunt-actions" id="huntActions">
         <button class="btn primary grow" id="marcoBtn">Marco!</button>
-        <button class="btn" id="clueBtn">Clue</button>
         <button class="btn" id="foundBtn">Found</button>
       </div>
       <div class="empty muted" id="huntEmpty" hidden>No spots to find yet. Switch to <b>Record</b> and tag some.</div>
     </section>
     <div class="dock-row">
-      <div class="modes" role="group" aria-label="Mode">
-        <button id="modeRecord" aria-pressed="true">Record</button>
-        <button id="modeHunt" aria-pressed="false">Marco Polo</button>
-      </div>
       <!-- Record mode: one tap saves the spot straight away -->
       <button class="tag-fab" id="tagBtn" aria-label="Tag this spot">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><path d="M12 7v5M9.5 9.5h5"/></svg>
@@ -358,9 +343,8 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
   <form class="sheet" id="spotForm" method="dialog">
     <h2 id="spotDlgTitle">Edit spot</h2>
     <label class="field"><span>Name</span><input id="spotName" maxlength="60" autocomplete="off"></label>
-    <label class="field"><span>Notes for clues</span>
-      <textarea id="spotHint" maxlength="600" placeholder="What's hidden here and what's nearby. E.g. 'Orange token tucked behind the mossy log, next to the big rimu by the stream.'"></textarea>
-      <small>Claude uses these notes to write clues. The kids never see them directly.</small>
+    <label class="field"><span>Notes</span>
+      <textarea id="spotHint" maxlength="600" placeholder="What's hidden here. E.g. 'Orange token behind the mossy log.'"></textarea>
     </label>
     <div class="coords" id="spotCoords"></div>
     <div class="row">
@@ -386,7 +370,7 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
       <span class="grow"></span>
       <button class="btn primary" data-close>Close</button>
     </div>
-    <p class="muted small" id="listHelp">Tap a spot to rename it, add clue notes or delete it.</p>
+    <p class="muted small" id="listHelp">Tap a spot to rename it, add notes or delete it.</p>
   </div>
 </dialog>
 
@@ -415,34 +399,20 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
 <dialog id="settingsDlg">
   <form class="sheet" id="settingsForm" method="dialog">
     <h2>Settings</h2>
-    <label class="field"><span>Anthropic API key</span>
-      <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
-      <small>Needed for Claude clues. Kept only in this browser's local storage and sent only to api.anthropic.com.</small>
-    </label>
-    <label class="field"><span>Clue model</span>
-      <select id="model">
-        <option value="claude-opus-5-5">Claude Opus 5.5 (best clues)</option>
-        <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
-        <option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest, cheapest)</option>
-      </select>
-    </label>
-    <label class="field"><span>Group</span>
-      <select id="group">
-        <option value="Keas (ages 5 to 8)">Keas (5–8)</option>
-        <option value="Cubs (ages 8 to 11)">Cubs (8–11)</option>
-        <option value="Scouts (ages 11 to 14)">Scouts (11–14)</option>
-      </select>
-    </label>
+    <div class="field"><span>Mode</span>
+      <div class="modes" role="group" aria-label="Mode">
+        <button type="button" id="modeRecord" aria-pressed="true">Record</button>
+        <button type="button" id="modeHunt" aria-pressed="false">Marco Polo</button>
+      </div>
+    </div>
     <div class="field"><span>Marco Polo</span>
       <div class="toggles">
         <label><input type="checkbox" id="hideSpots"> Hide spots on map</label>
-        <label><input type="checkbox" id="autoClue"> Auto clues</label>
         <label><input type="checkbox" id="voiceOn"> Speak</label>
       </div>
     </div>
     <div class="row">
-      <button type="button" class="btn" id="testKeyBtn">Test key</button>
-      <span class="grow small muted" id="testKeyOut"></span>
+      <span class="grow"></span>
       <button type="submit" class="btn primary">Done</button>
     </div>
   </form>
@@ -464,7 +434,6 @@ const $ = (s) => document.querySelector(s);
 
 /* ---------- Storage ---------- */
 const LS_STATE = "keaHunt.v1";
-const LS_KEY = "keaHunt.apiKey";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 function readJSON(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
@@ -472,10 +441,10 @@ function saveState() {
   try { localStorage.setItem(LS_STATE, JSON.stringify(state)); }
   catch { toast("Couldn't save. Browser storage is full or blocked."); }
 }
-function getKey() { try { return localStorage.getItem(LS_KEY) || ""; } catch { return ""; } }
-function setKey(v) { try { v ? localStorage.setItem(LS_KEY, v) : localStorage.removeItem(LS_KEY); } catch {} }
+// The clue feature kept an API key here; clear it from phones that saved one.
+try { localStorage.removeItem("keaHunt.apiKey"); } catch {}
 
-const defaults = { voice: true, autoClue: true, hideSpots: false, model: "claude-opus-5-5", group: "Keas (ages 5 to 8)", base: "cracroft", mode: "record" };
+const defaults = { voice: true, hideSpots: false, base: "cracroft", mode: "record" };
 let state = readJSON(LS_STATE) || { hunts: [], activeId: null, settings: {} };
 state.settings = Object.assign({}, defaults, state.settings);
 if (!state.hunts.length) addHunt("First hunt");
@@ -499,8 +468,6 @@ function bearing(a, b) {
   const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lng - a.lng));
   return (deg(Math.atan2(y, x)) + 360) % 360;
 }
-const CARD = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
-const cardinal = (b) => CARD[Math.round(b / 45) % 8];
 const SHORT = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 function relative(diff) {
   diff = (diff + 360) % 360;
@@ -787,7 +754,7 @@ function afterHuntChange() { renderHuntList(); renderSpots(); renderTargets(); i
 $("#huntBtn").onclick = () => { renderHuntList(); $("#huntsDlg").showModal(); };
 $("#huntRename").oninput = (e) => { hunt().name = e.target.value.trim() || "Untitled hunt"; saveState(); renderSpots(); };
 $("#newHuntBtn").onclick = () => { addHunt(`Hunt ${new Date().toLocaleDateString("en-NZ")}`); targetId = null; afterHuntChange(); $("#huntRename").focus(); $("#huntRename").select(); };
-$("#resetFoundBtn").onclick = () => { hunt().spots.forEach((s) => (s.found = null)); saveState(); renderSpots(); renderTargets(); clueLog = {}; toast("All spots are hidden again"); };
+$("#resetFoundBtn").onclick = () => { hunt().spots.forEach((s) => (s.found = null)); saveState(); renderSpots(); renderTargets(); toast("All spots are hidden again"); };
 armable($("#deleteHuntBtn"), "Delete hunt", () => {
   state.hunts = state.hunts.filter((h) => h.id !== state.activeId);
   if (!state.hunts.length) addHunt("First hunt");
@@ -817,22 +784,8 @@ $("#importInput").onchange = async (e) => {
 };
 
 /* ---------- Settings ---------- */
-$("#settingsBtn").onclick = () => {
-  $("#apiKey").value = getKey(); $("#model").value = state.settings.model; $("#group").value = state.settings.group;
-  $("#testKeyOut").textContent = "";
-  $("#settingsDlg").showModal();
-};
-$("#settingsForm").onsubmit = (e) => { e.preventDefault(); saveSettings(); $("#settingsDlg").close(); };
-function saveSettings() {
-  setKey($("#apiKey").value.trim());
-  state.settings.model = $("#model").value; state.settings.group = $("#group").value; saveState();
-}
-$("#testKeyBtn").onclick = async () => {
-  saveSettings();
-  $("#testKeyOut").textContent = "Checking…";
-  try { const t = await askClaude("Reply with exactly: Kia ora! Ready to hunt."); $("#testKeyOut").textContent = t; }
-  catch (err) { $("#testKeyOut").textContent = claudeErr(err); }
-};
+$("#settingsBtn").onclick = () => $("#settingsDlg").showModal();
+$("#settingsForm").onsubmit = (e) => { e.preventDefault(); $("#settingsDlg").close(); };
 document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = () => b.closest("dialog").close()));
 document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
 
@@ -850,15 +803,15 @@ function setMode(m) {
   renderSpots();
   setTimeout(() => map.invalidateSize(), 50);
 }
-$("#modeRecord").onclick = () => setMode("record");
-$("#modeHunt").onclick = () => setMode("hunt");
+// The mode switch lives in Settings; picking one goes straight back to the map.
+function pickMode(m) { setMode(m); $("#settingsDlg").close(); toast(m === "hunt" ? "Marco Polo mode" : "Record mode"); }
+$("#modeRecord").onclick = () => pickMode("record");
+$("#modeHunt").onclick = () => pickMode("hunt");
 
 /* ---------- Marco Polo ---------- */
 let targetId = null;
 let distLog = [];          // recent {t, d} to the target, for warmer/colder
 let lastBand = null;
-let clueLog = {};          // spotId -> [clues]
-let lastAutoClue = 0;
 let lastMarcoDist = null;
 
 function unfound() { return hunt().spots.filter((s) => !s.found); }
@@ -870,7 +823,6 @@ function pickNearest() {
 }
 function setTarget(id) {
   targetId = id; distLog = []; lastBand = null; lastMarcoDist = null;
-  $("#clue").hidden = true;
   renderTargets(); renderSpots(); updateHunt();
 }
 function renderTargets() {
@@ -887,7 +839,6 @@ function renderTargets() {
   const none = !h.spots.length;
   $("#huntEmpty").hidden = !none;
   ["#targets", "#huntBody", "#huntActions"].forEach((s) => ($(s).hidden = none));
-  if (none) $("#clue").hidden = true;
   if (!none && !unfound().length) {
     $("#tempWord").textContent = "All found!";
     $("#distText").textContent = "Tap Hunts → Reset found to play again";
@@ -943,14 +894,11 @@ function updateHunt() {
     else targetLine = L.polyline(ll, { color: "#e0661a", weight: 3, dashArray: "6 8", interactive: false }).addTo(map);
   } else if (targetLine) { map.removeLayer(targetLine); targetLine = null; }
 
-  // Entering a closer band: buzz, and maybe fetch a fresh clue.
+  // Entering a closer band: buzz and say so.
   const bi = bandIndex(s.band);
   if (lastBand != null && bi < lastBand) {
     vibrate([80, 60, 80]);
     speak(s.band.say);
-    if (state.settings.autoClue && getKey() && Date.now() - lastAutoClue > 25000 && s.band.id !== "freezing") {
-      lastAutoClue = Date.now(); getClue();
-    }
   }
   lastBand = bi;
 }
@@ -985,7 +933,7 @@ $("#foundBtn").onclick = () => {
 $("#celebrateNext").onclick = () => { $("#celebrate").hidden = true; setTarget(pickNearest()); };
 
 /* Toggles */
-const toggles = { hideSpots: "#hideSpots", autoClue: "#autoClue", voice: "#voiceOn" };
+const toggles = { hideSpots: "#hideSpots", voice: "#voiceOn" };
 Object.entries(toggles).forEach(([k, sel]) => {
   $(sel).checked = !!state.settings[k];
   $(sel).onchange = (e) => { state.settings[k] = e.target.checked; saveState(); renderSpots(); updateHunt(); };
@@ -1025,75 +973,6 @@ $("#compassBtn").onclick = async () => {
     setTimeout(() => { if (compassHeading == null) toast("No compass found. The arrow will work once you start walking."); }, 3000);
   } catch { toast("This phone doesn't share its compass with the browser"); }
 };
-
-/* ---------- Claude clues ---------- */
-async function askClaude(prompt) {
-  const key = getKey();
-  if (!key) throw { code: "nokey" };
-  const model = state.settings.model;
-  const body = { model, max_tokens: 2000, output_config: { effort: "low" }, messages: [{ role: "user", content: prompt }] };
-  const headers = {
-    "content-type": "application/json",
-    "x-api-key": key,
-    "anthropic-version": "2023-06-01",
-    "anthropic-dangerous-direct-browser-access": "true",
-  };
-  if (model !== "claude-haiku-5-5") { body.fallbacks = "default"; headers["anthropic-beta"] = "server-side-fallback-2026-07-01"; }
-  let r;
-  try { r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers, body: JSON.stringify(body) }); }
-  catch { throw { code: "network" }; }
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw { code: r.status, message: j.error && j.error.message };
-  if (j.stop_reason === "refusal") throw { code: "refusal" };
-  const text = (j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-  if (!text) throw { code: "empty" };
-  return text;
-}
-function claudeErr(e) {
-  if (e.code === "nokey") return "Add your Anthropic API key in Settings to get clues.";
-  if (e.code === "network") return "No internet connection, so no clue right now.";
-  if (e.code === 401) return "The API key was rejected. Check it in Settings.";
-  if (e.code === 429) return "Too many clues too fast. Wait a moment and try again.";
-  if (e.code === 529 || e.code >= 500) return "Claude is busy right now. Try again shortly.";
-  if (e.code === "refusal" || e.code === "empty") return "Claude couldn't write a clue for that. Try again.";
-  return e.message || `Clue failed (${e.code}).`;
-}
-let clueBusy = false;
-async function getClue() {
-  const s = snapshot();
-  if (!s) return toast(target() ? "Still waiting for GPS" : "Pick a spot to find");
-  if (clueBusy) return;
-  clueBusy = true;
-  const box = $("#clue"); box.hidden = false; box.className = "clue thinking"; box.textContent = "Thinking up a clue…";
-  $("#clueBtn").disabled = true;
-  const prev = clueLog[s.t.id] || [];
-  const tr = trend();
-  const prompt = [
-    `You are helping a Scout leader run a treasure hunt in a New Zealand reserve for ${state.settings.group}.`,
-    `Write ONE clue that helps the group walk to the hidden spot.`,
-    ``,
-    `Spot name: ${s.t.name}`,
-    `Leader's private notes about the spot: ${s.t.hint || "(none)"}`,
-    `Distance from the group: about ${Math.round(s.d)} metres, which is about ${steps(s.d)} big kid steps. Hot/cold level: ${s.band.word}.`,
-    s.rel ? `Direction from where they are facing: ${s.rel}.` : `Direction: towards the ${cardinal(s.b)} (they may not know compass directions, so describe it with landmarks from the notes or the sun if you can).`,
-    tr ? `They are getting ${tr < 0 ? "warmer" : "colder"}.` : "",
-    `GPS accuracy is about ±${Math.round(me.acc)} m.`,
-    gridRef(s.t) ? `The group carries a printed grid map: columns A to L run west to east, rows 1 to 16 run north to south, and each square is 20 m. The spot is in square ${gridRef(s.t)}${gridRef(me) ? ` and the group is in square ${gridRef(me)}` : ""}. When they're Cool or further away, you can tell them which square to head for.` : "",
-    prev.length ? `Clues already given (don't repeat these):\n- ${prev.join("\n- ")}` : "",
-    ``,
-    `Rules: one or two short sentences, under 30 words. Use simple words the youngest child in the group would understand. Be playful and encouraging. Give distance in steps, never metres. Don't read the notes out word for word. Hint at the landmarks instead. The closer they are, the more specific the clue can be. When they're very close (Boiling or Hot), point at the exact hiding place from the notes. Reply with only the clue.`,
-  ].filter(Boolean).join("\n");
-  try {
-    const clue = await askClaude(prompt);
-    (clueLog[s.t.id] = prev).push(clue);
-    box.className = "clue"; box.innerHTML = `<span class="who">Clue from Claude</span>`;
-    box.append(clue);
-    speak(clue);
-  } catch (e) {
-    box.className = "clue"; box.textContent = claudeErr(e);
-  } finally { clueBusy = false; $("#clueBtn").disabled = false; }
-}
-$("#clueBtn").onclick = getClue;
 
 /* ---------- Device helpers ---------- */
 function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch {} }
