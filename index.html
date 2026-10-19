@@ -80,7 +80,7 @@ button { cursor: pointer; }
 .hunt-name small { display: block; font: 400 .75rem/1.2 var(--body); opacity: .85; letter-spacing: .02em; }
 .bar-btn {
   flex: none; display: flex; align-items: center; gap: 6px;
-  border: 0; border-radius: 999px; padding: 8px 14px;
+  border: 0; border-radius: 999px; padding: 8px 10px;
   background: color-mix(in srgb, var(--kea-deep) 55%, transparent); color: inherit; font-weight: 700;
 }
 .bar-btn svg { width: 20px; height: 20px; }
@@ -133,12 +133,12 @@ button { cursor: pointer; }
 }
 .dock-row { display: flex; justify-content: flex-end; }
 .dock-row > *, .hunt-card { pointer-events: auto; }
-.modes { display: flex; background: var(--bg); border: 2px solid var(--line); border-radius: 999px; padding: 3px; }
+.modes { flex: none; display: flex; background: color-mix(in srgb, var(--kea-deep) 55%, transparent); border-radius: 999px; padding: 3px; }
 .modes button {
-  flex: 1; border: 0; background: none; color: var(--ink); border-radius: 999px;
-  padding: 10px 14px; font-weight: 700; white-space: nowrap;
+  border: 0; background: none; color: inherit; border-radius: 999px;
+  padding: 7px 11px; font-weight: 700; font-size: .9rem; white-space: nowrap;
 }
-.modes button[aria-pressed="true"] { background: var(--kea); color: var(--on-accent); }
+.modes button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
 .tag-fab {
   --p: 0;
   width: 84px; height: 84px; flex: none; border: 0; border-radius: 50%;
@@ -281,9 +281,12 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
     <span id="huntTitle">Kea Hunt</span>
     <small id="huntMeta">0 spots</small>
   </button>
+  <div class="modes" id="modes" role="group" aria-label="Mode">
+    <button id="modeRecord" aria-pressed="true">Record</button>
+    <button id="modeHunt" aria-pressed="false">Marco</button>
+  </div>
   <button class="bar-btn" id="listBtn" aria-label="Trail list">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.3" fill="currentColor"/><circle cx="4" cy="12" r="1.3" fill="currentColor"/><circle cx="4" cy="18" r="1.3" fill="currentColor"/></svg>
-    List
   </button>
   <button class="icon-btn" id="settingsBtn" aria-label="Settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -365,8 +368,12 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
     <p class="muted small" id="listEmpty" hidden>No spots yet. In <b>Record</b>, walk to a spot and tap <b>Tag</b>.</p>
     <textarea id="trailOut" class="coords" rows="6" readonly hidden style="width:100%;border:2px solid var(--line);border-radius:12px;padding:8px;background:var(--bg)"></textarea>
     <div class="row">
-      <button class="btn" id="copyTrailBtn">Copy</button>
+      <button class="btn" id="copyJsonBtn">Copy JSON</button>
+      <button class="btn" id="copyTrailBtn">Copy squares</button>
       <button class="btn" id="shareTrailBtn" hidden>Share</button>
+    </div>
+    <div class="row">
+      <button class="btn danger" id="clearSpotsBtn">Clear all</button>
       <span class="grow"></span>
       <button class="btn primary" data-close>Close</button>
     </div>
@@ -399,15 +406,10 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
 <dialog id="settingsDlg">
   <form class="sheet" id="settingsForm" method="dialog">
     <h2>Settings</h2>
-    <div class="field"><span>Mode</span>
-      <div class="modes" role="group" aria-label="Mode">
-        <button type="button" id="modeRecord" aria-pressed="true">Record</button>
-        <button type="button" id="modeHunt" aria-pressed="false">Marco Polo</button>
-      </div>
-    </div>
     <div class="field"><span>Marco Polo</span>
       <div class="toggles">
-        <label><input type="checkbox" id="hideSpots"> Hide spots on map</label>      </div>
+        <label><input type="checkbox" id="hideSpots"> Hide spots on map</label>
+      </div>
     </div>
     <div class="row">
       <span class="grow"></span>
@@ -445,6 +447,24 @@ try { localStorage.removeItem("keaHunt.apiKey"); } catch {}
 const defaults = { hideSpots: false, base: "cracroft", mode: "record" };
 let state = readJSON(LS_STATE) || { hunts: [], activeId: null, settings: {} };
 state.settings = Object.assign({}, defaults, state.settings);
+/* ---------- Hard-coded trail ---------- */
+// Paste the List → Copy JSON output here to turn the app into a Marco Polo game for that one
+// trail: it opens straight into Marco Polo and hides recording. Add ?record to the address to
+// get the recording tools back. Leave as null for the normal app.
+const TRAIL = null;
+const PLAY_ONLY = !!TRAIL && !new URLSearchParams(location.search).has("record");
+if (TRAIL) {
+  // Keep found ticks across reloads, but start fresh whenever the trail itself changes.
+  const sig = JSON.stringify(TRAIL.spots.map((s) => [s.lat, s.lng]));
+  let h = state.hunts.find((x) => x.id === "trail");
+  if (!h || h.sig !== sig) {
+    state.hunts = state.hunts.filter((x) => x.id !== "trail");
+    h = { id: "trail", sig, name: TRAIL.name || "Trail", created: Date.now(),
+      spots: TRAIL.spots.map((s, i) => ({ id: "t" + i, name: s.name || `Spot ${i + 1}`, hint: s.hint || "", lat: s.lat, lng: s.lng, acc: s.acc ?? null, created: 0, found: null })) };
+    state.hunts.unshift(h);
+  }
+  if (PLAY_ONLY) { state.activeId = "trail"; state.settings.mode = "hunt"; }
+}
 if (!state.hunts.length) addHunt("First hunt");
 if (!hunt()) state.activeId = state.hunts[0].id;
 
@@ -709,14 +729,17 @@ $("#listBtn").onclick = () => {
     b.querySelector(".sq").textContent = sq || "Off grid";
     b.querySelector("b").textContent = s.name + (s.found ? " ✓" : "");
     b.querySelector(".txt span").textContent = [s.hint, me && `${fmtDist(dist(me, s))} away`].filter(Boolean).join(" · ") || "No notes";
-    b.onclick = () => { $("#listDlg").close(); map.setView([s.lat, s.lng], 19); follow = false; $("#followBtn").setAttribute("aria-pressed", "false"); openSpot(s.id); };
+    b.onclick = () => { $("#listDlg").close(); map.setView([s.lat, s.lng], 19); follow = false; $("#followBtn").setAttribute("aria-pressed", "false"); if (!PLAY_ONLY) openSpot(s.id); };
     li.append(b); ul.append(li);
   });
   const n = h.spots.length;
   $("#listTitle").textContent = n ? `Trail · ${n} spot${n === 1 ? "" : "s"}` : "Trail";
   $("#listEmpty").hidden = n > 0;
-  $("#listHelp").hidden = !n;
+  $("#listHelp").hidden = !n || PLAY_ONLY;
   $("#copyTrailBtn").hidden = !n;
+  $("#copyJsonBtn").hidden = !n || PLAY_ONLY;
+  $("#clearSpotsBtn").hidden = !n || PLAY_ONLY;
+  disarm($("#clearSpotsBtn"), "Clear all");
   $("#shareTrailBtn").hidden = !n || !navigator.share;
   $("#trailOut").hidden = true;
   $("#listDlg").showModal();
@@ -725,11 +748,29 @@ function trailText() {
   const h = hunt();
   return [`${h.name}: Cracroft Reserve grid trail`, ...h.spots.map((s, i) => `${i + 1}. ${gridRef(s) || "off map"}` + (/^Spot \d+$/.test(s.name) ? "" : `  ${s.name}`))].join("\n");
 }
-$("#copyTrailBtn").onclick = async () => {
-  const text = trailText();
-  try { await navigator.clipboard.writeText(text); toast("Trail copied"); }
-  catch { $("#trailOut").hidden = false; $("#trailOut").value = text; $("#trailOut").select(); toast("Select and copy the trail below"); }
-};
+// The trail as JSON, one spot per line, in the shape TRAIL (below the storage code) expects.
+function trailJson() {
+  const h = hunt();
+  const spots = h.spots.map((s, i) => {
+    const o = { n: i + 1, sq: gridRef(s) || "", lat: +s.lat.toFixed(7), lng: +s.lng.toFixed(7), acc: s.acc == null ? null : Math.round(s.acc) };
+    if (!/^Spot \d+$/.test(s.name)) o.name = s.name;
+    if (s.hint) o.hint = s.hint;
+    return "    " + JSON.stringify(o);
+  });
+  return `{\n  "name": ${JSON.stringify(h.name)},\n  "spots": [\n${spots.join(",\n")}\n  ]\n}`;
+}
+async function copyOut(text, done) {
+  try { await navigator.clipboard.writeText(text); toast(done); }
+  catch { $("#trailOut").hidden = false; $("#trailOut").value = text; $("#trailOut").select(); toast("Select and copy the text below"); }
+}
+armable($("#clearSpotsBtn"), "Clear all", () => {
+  finishRefine();
+  hunt().spots = []; targetId = null;
+  saveState(); renderSpots(); renderTargets(); updateHunt();
+  $("#listDlg").close(); toast("All spots cleared");
+});
+$("#copyTrailBtn").onclick = () => copyOut(trailText(), "Squares copied");
+$("#copyJsonBtn").onclick = () => copyOut(trailJson(), "JSON copied");
 $("#shareTrailBtn").onclick = () => { navigator.share({ title: hunt().name, text: trailText() }).catch(() => {}); };
 
 /* ---------- Hunts dialog ---------- */
@@ -749,7 +790,7 @@ function renderHuntList() {
   disarm($("#deleteHuntBtn"), "Delete hunt");
 }
 function afterHuntChange() { renderHuntList(); renderSpots(); renderTargets(); if (mode === "hunt") updateHunt(); fitAll(); }
-$("#huntBtn").onclick = () => { renderHuntList(); $("#huntsDlg").showModal(); };
+$("#huntBtn").onclick = () => { if (PLAY_ONLY) return; renderHuntList(); $("#huntsDlg").showModal(); };
 $("#huntRename").oninput = (e) => { hunt().name = e.target.value.trim() || "Untitled hunt"; saveState(); renderSpots(); };
 $("#newHuntBtn").onclick = () => { addHunt(`Hunt ${new Date().toLocaleDateString("en-NZ")}`); targetId = null; afterHuntChange(); $("#huntRename").focus(); $("#huntRename").select(); };
 $("#resetFoundBtn").onclick = () => { hunt().spots.forEach((s) => (s.found = null)); saveState(); renderSpots(); renderTargets(); toast("All spots are hidden again"); };
@@ -790,6 +831,7 @@ document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (
 /* ---------- Modes ---------- */
 let mode = "record";
 function setMode(m) {
+  if (PLAY_ONLY) m = "hunt";
   mode = m; state.settings.mode = m; saveState();
   $("#modeRecord").setAttribute("aria-pressed", String(m === "record"));
   $("#modeHunt").setAttribute("aria-pressed", String(m === "hunt"));
@@ -801,10 +843,8 @@ function setMode(m) {
   renderSpots();
   setTimeout(() => map.invalidateSize(), 50);
 }
-// The mode switch lives in Settings; picking one goes straight back to the map.
-function pickMode(m) { setMode(m); $("#settingsDlg").close(); toast(m === "hunt" ? "Marco Polo mode" : "Record mode"); }
-$("#modeRecord").onclick = () => pickMode("record");
-$("#modeHunt").onclick = () => pickMode("hunt");
+$("#modeRecord").onclick = () => setMode("record");
+$("#modeHunt").onclick = () => setMode("hunt");
 
 /* ---------- Marco Polo ---------- */
 let targetId = null;
@@ -994,6 +1034,7 @@ function disarm(btn, label) { btn.classList.remove("armed"); btn.textContent = l
 /* ---------- Boot ---------- */
 renderSpots();
 setMode(state.settings.mode === "hunt" ? "hunt" : "record");
+if (PLAY_ONLY) { $("#modes").hidden = true; $("#listHelp").hidden = true; }
 // Show the Cracroft map until the first GPS fix arrives and centres on you.
 map.fitBounds(CRACROFT.bounds);
 </script>
