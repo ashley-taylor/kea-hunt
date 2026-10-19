@@ -407,9 +407,7 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
     </div>
     <div class="field"><span>Marco Polo</span>
       <div class="toggles">
-        <label><input type="checkbox" id="hideSpots"> Hide spots on map</label>
-        <label><input type="checkbox" id="voiceOn"> Speak</label>
-      </div>
+        <label><input type="checkbox" id="hideSpots"> Hide spots on map</label>      </div>
     </div>
     <div class="row">
       <span class="grow"></span>
@@ -444,7 +442,7 @@ function saveState() {
 // The clue feature kept an API key here; clear it from phones that saved one.
 try { localStorage.removeItem("keaHunt.apiKey"); } catch {}
 
-const defaults = { voice: true, hideSpots: false, base: "cracroft", mode: "record" };
+const defaults = { hideSpots: false, base: "cracroft", mode: "record" };
 let state = readJSON(LS_STATE) || { hunts: [], activeId: null, settings: {} };
 state.settings = Object.assign({}, defaults, state.settings);
 if (!state.hunts.length) addHunt("First hunt");
@@ -894,12 +892,9 @@ function updateHunt() {
     else targetLine = L.polyline(ll, { color: "#e0661a", weight: 3, dashArray: "6 8", interactive: false }).addTo(map);
   } else if (targetLine) { map.removeLayer(targetLine); targetLine = null; }
 
-  // Entering a closer band: buzz and say so.
+  // Entering a closer band: buzz.
   const bi = bandIndex(s.band);
-  if (lastBand != null && bi < lastBand) {
-    vibrate([80, 60, 80]);
-    speak(s.band.say);
-  }
+  if (lastBand != null && bi < lastBand) vibrate([80, 60, 80]);
   lastBand = bi;
 }
 
@@ -917,14 +912,12 @@ $("#marcoBtn").onclick = () => {
   lastMarcoDist = s.d;
   // More buzzes the closer they are: one when freezing, six when boiling.
   vibrate(Array.from({ length: BANDS.length - bandIndex(s.band) }).flatMap(() => [120, 80]));
-  speak(msg);
   toast(msg);
 };
 $("#foundBtn").onclick = () => {
   const t = target(); if (!t) return;
   t.found = Date.now(); saveState();
   vibrate([100, 50, 100, 50, 300]);
-  speak(`Polo! You found ${t.name}! Well done!`);
   const left = unfound().length;
   $("#celebrateText").textContent = left ? `${t.name} found. ${left} to go.` : `${t.name} found. That's every spot!`;
   $("#celebrateNext").textContent = left ? "Next spot" : "Finish";
@@ -933,7 +926,7 @@ $("#foundBtn").onclick = () => {
 $("#celebrateNext").onclick = () => { $("#celebrate").hidden = true; setTarget(pickNearest()); };
 
 /* Toggles */
-const toggles = { hideSpots: "#hideSpots", voice: "#voiceOn" };
+const toggles = { hideSpots: "#hideSpots" };
 Object.entries(toggles).forEach(([k, sel]) => {
   $(sel).checked = !!state.settings[k];
   $(sel).onchange = (e) => { state.settings[k] = e.target.checked; saveState(); renderSpots(); updateHunt(); };
@@ -976,17 +969,6 @@ $("#compassBtn").onclick = async () => {
 
 /* ---------- Device helpers ---------- */
 function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch {} }
-function speak(text) {
-  if (!state.settings.voice || !("speechSynthesis" in window)) return;
-  try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    const v = speechSynthesis.getVoices().find((v) => /en[-_]NZ/i.test(v.lang)) || speechSynthesis.getVoices().find((v) => /^en/i.test(v.lang));
-    if (v) u.voice = v;
-    u.rate = 1.0; u.pitch = 1.1;
-    speechSynthesis.speak(u);
-  } catch {}
-}
 let wakeLock = null;
 async function keepAwake() {
   try { if ("wakeLock" in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => (wakeLock = null)); } } catch {}
