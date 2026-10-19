@@ -481,13 +481,14 @@ const steps = (m) => Math.max(1, Math.round(m / 0.6));
 function fmtDist(m) { return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`; }
 
 /* ---------- Cracroft Reserve map ---------- */
-// The A3 print (maps/cracroft_A3_grid.pdf) is Web Mercator, north up. Bounds were found by fitting
-// its yellow reserve outline to OSM way 27208789 (median error ~0.25 m).
+// The A3 print (maps/cracroft_A3_grid.pdf) is Web Mercator, north up. Its scale comes from the grid
+// (20 m squares); its position was set by matching the red roof in the reserve to the satellite
+// tiles, and checked against the OSM reserve outline (way 27208789) to about 1 m.
 const CRACROFT = {
   image: "maps/cracroft.jpg",
-  bounds: [[-43.583149780525176, 172.63217188083817], [-43.580141307522354, 172.63530231976145]],
+  bounds: [[-43.581852126945471, 172.63267452656896], [-43.578843589097524, 172.63580496549224]],
   // Gridded area in Web Mercator metres: 12 columns (A–L, west to east) × 16 rows (1–16, north to south), 20 m squares.
-  grid: { west: 19217333.912, east: 19217665.007, north: -5400709.733, south: -5401151.292, cols: 12, rows: 16 },
+  grid: { west: 19217389.866, east: 19217720.961, north: -5400510.316, south: -5400951.875, cols: 12, rows: 16 },
 };
 const MERC_R = 6378137;
 function gridCell(p) {
