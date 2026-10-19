@@ -420,7 +420,34 @@ state.settings = Object.assign({}, defaults, state.settings);
 // Paste the List → Copy JSON output here to turn the app into a Marco Polo game for that one
 // trail: it opens straight into Marco Polo and hides recording. Add ?record to the address to
 // get the recording tools back. Leave as null for the normal app.
-const TRAIL = null;
+const TRAIL = {
+  "name": "Cracroft trail",
+  "spots": [
+    {"n":1,"sq":"G3","lat":-43.5794205,"lng":172.6343944,"acc":3},
+    {"n":2,"sq":"F4","lat":-43.5795308,"lng":172.6340812,"acc":3},
+    {"n":3,"sq":"E5","lat":-43.5797846,"lng":172.6338935,"acc":3},
+    {"n":4,"sq":"D6","lat":-43.5798617,"lng":172.6335946,"acc":3},
+    {"n":5,"sq":"B6","lat":-43.5799406,"lng":172.6331764,"acc":3},
+    {"n":6,"sq":"C7","lat":-43.5801824,"lng":172.6334019,"acc":3},
+    {"n":7,"sq":"D10","lat":-43.580576,"lng":172.6336908,"acc":3},
+    {"n":8,"sq":"D11","lat":-43.5808169,"lng":172.633653,"acc":3},
+    {"n":9,"sq":"E11","lat":-43.5808934,"lng":172.6338148,"acc":3},
+    {"n":10,"sq":"E12","lat":-43.5809135,"lng":172.6339699,"acc":3},
+    {"n":11,"sq":"F12","lat":-43.5809255,"lng":172.6341117,"acc":3},
+    {"n":12,"sq":"G11","lat":-43.5809055,"lng":172.634359,"acc":3},
+    {"n":13,"sq":"H12","lat":-43.5809779,"lng":172.6345245,"acc":3},
+    {"n":14,"sq":"H13","lat":-43.5812009,"lng":172.6347114,"acc":3},
+    {"n":15,"sq":"I13","lat":-43.5810998,"lng":172.634972,"acc":3},
+    {"n":16,"sq":"J13","lat":-43.5811243,"lng":172.635222,"acc":3},
+    {"n":17,"sq":"J11","lat":-43.5808572,"lng":172.6350684,"acc":3},
+    {"n":18,"sq":"I11","lat":-43.5807636,"lng":172.6348674,"acc":3},
+    {"n":19,"sq":"I10","lat":-43.5806115,"lng":172.6347933,"acc":3},
+    {"n":20,"sq":"H9","lat":-43.5804537,"lng":172.6345884,"acc":3},
+    {"n":21,"sq":"G8","lat":-43.5802218,"lng":172.6344507,"acc":3},
+    {"n":22,"sq":"G6","lat":-43.5799863,"lng":172.6342392,"acc":3},
+    {"n":23,"sq":"F5","lat":-43.5797053,"lng":172.6341655,"acc":3}
+  ]
+};
 const PLAY_ONLY = !!TRAIL && !new URLSearchParams(location.search).has("record");
 if (TRAIL) {
   // Keep found ticks across reloads, but start fresh whenever the trail itself changes.
