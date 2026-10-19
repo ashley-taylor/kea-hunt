@@ -84,11 +84,6 @@ button { cursor: pointer; }
   background: color-mix(in srgb, var(--kea-deep) 55%, transparent); color: inherit; font-weight: 700;
 }
 .bar-btn svg { width: 20px; height: 20px; }
-.icon-btn {
-  width: 40px; height: 40px; flex: none; display: grid; place-items: center;
-  border: 0; border-radius: 50%; background: none; color: inherit;
-}
-.icon-btn svg { width: 24px; height: 24px; }
 
 /* Map */
 .map-wrap { position: relative; flex: 1; min-height: 160px; }
@@ -120,8 +115,6 @@ button { cursor: pointer; }
   display: grid; place-items: center;
 }
 .pin b { transform: rotate(45deg); color: #fff; font: 800 .85rem/1 var(--display); }
-.pin.found { background: #6c7a63; }
-.pin.target { background: var(--t-boiling); outline: 3px solid #fff8; }
 
 /* Overlays floating on the map: mode switch and Tag button at the bottom, Marco Polo card above them. */
 .dock {
@@ -207,9 +200,6 @@ button { cursor: pointer; }
 .arrow-box .dir { font: 800 1.1rem/1 var(--display); }
 .trend { font-weight: 800; }
 
-.toggles { display: flex; gap: 14px; flex-wrap: wrap; font-size: .9rem; }
-.toggles label { display: flex; align-items: center; gap: 6px; }
-.field .toggles input { width: 22px; height: 22px; flex: none; accent-color: var(--kea); }
 
 .empty { text-align: center; padding-block: 8px; }
 
@@ -287,9 +277,6 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
   </div>
   <button class="bar-btn" id="listBtn" aria-label="Trail list">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.3" fill="currentColor"/><circle cx="4" cy="12" r="1.3" fill="currentColor"/><circle cx="4" cy="18" r="1.3" fill="currentColor"/></svg>
-  </button>
-  <button class="icon-btn" id="settingsBtn" aria-label="Settings">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
   </button>
 </header>
 
@@ -402,21 +389,6 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
   </div>
 </dialog>
 
-<!-- Settings -->
-<dialog id="settingsDlg">
-  <form class="sheet" id="settingsForm" method="dialog">
-    <h2>Settings</h2>
-    <div class="field"><span>Marco Polo</span>
-      <div class="toggles">
-        <label><input type="checkbox" id="hideSpots"> Hide spots on map</label>
-      </div>
-    </div>
-    <div class="row">
-      <span class="grow"></span>
-      <button type="submit" class="btn primary">Done</button>
-    </div>
-  </form>
-</dialog>
 
 <div class="celebrate" id="celebrate" hidden>
   <div>
@@ -444,7 +416,7 @@ function saveState() {
 // The clue feature kept an API key here; clear it from phones that saved one.
 try { localStorage.removeItem("keaHunt.apiKey"); } catch {}
 
-const defaults = { hideSpots: false, base: "cracroft", mode: "record" };
+const defaults = { base: "cracroft", mode: "record" };
 let state = readJSON(LS_STATE) || { hunts: [], activeId: null, settings: {} };
 state.settings = Object.assign({}, defaults, state.settings);
 /* ---------- Hard-coded trail ---------- */
@@ -521,14 +493,25 @@ const CRACROFT = {
   grid: { west: 19217333.912, east: 19217665.007, north: -5400709.733, south: -5401151.292, cols: 12, rows: 16 },
 };
 const MERC_R = 6378137;
-function gridRef(p) {
+function gridCell(p) {
   if (!p) return null;
   const g = CRACROFT.grid;
   const x = MERC_R * rad(p.lng), y = MERC_R * Math.log(Math.tan(Math.PI / 4 + rad(p.lat) / 2));
   const c = Math.floor((x - g.west) / (g.east - g.west) * g.cols);
   const r = Math.floor((g.north - y) / (g.north - g.south) * g.rows);
   if (c < 0 || c >= g.cols || r < 0 || r >= g.rows) return null;
-  return "ABCDEFGHIJKL"[c] + (r + 1);
+  return { c, r };
+}
+function gridRef(p) {
+  const cell = gridCell(p);
+  return cell && "ABCDEFGHIJKL"[cell.c] + (cell.r + 1);
+}
+// Lat/lng corners of the grid square a point is in, for drawing it.
+function squareBounds(p) {
+  const cell = gridCell(p); if (!cell) return null;
+  const g = CRACROFT.grid, w = (g.east - g.west) / g.cols, hgt = (g.north - g.south) / g.rows;
+  const ll = (x, y) => [deg(2 * Math.atan(Math.exp(y / MERC_R)) - Math.PI / 2), deg(x / MERC_R)];
+  return [ll(g.west + cell.c * w, g.north - (cell.r + 1) * hgt), ll(g.west + (cell.c + 1) * w, g.north - cell.r * hgt)];
 }
 
 /* ---------- Map ---------- */
@@ -555,21 +538,29 @@ function applyLayer() {
 applyLayer();
 
 const spotLayer = L.layerGroup().addTo(map);
-let meMarker = null, meCircle = null, targetLine = null;
+let meMarker = null, meCircle = null;
 let follow = true;
 
+// Marco Polo shows no pins. Instead the squares of the next three spots light up, darkest first.
+const SQUARE_COLOR = "#1a56db";
+const SQUARE_FILL = [0.55, 0.3, 0.14];
 function renderSpots() {
   spotLayer.clearLayers();
   const h = hunt(); if (!h) return;
-  const hide = mode === "hunt" && state.settings.hideSpots;
-  h.spots.forEach((s, i) => {
-    if (hide && !s.found) return;
-    const cls = s.found ? "found" : (mode === "hunt" && s.id === targetId ? "target" : "");
-    const icon = L.divIcon({ className: "", html: `<div class="pin ${cls}"><b>${i + 1}</b></div>`, iconSize: [30, 30], iconAnchor: [15, 30] });
-    L.marker([s.lat, s.lng], { icon, title: s.name })
-      .on("click", () => { if (mode === "record") openSpot(s.id); else { setTarget(s.id); } })
-      .addTo(spotLayer);
-  });
+  if (mode === "hunt") {
+    upcoming().slice().reverse().forEach((s, k, arr) => {
+      const i = arr.length - 1 - k;
+      const style = { color: SQUARE_COLOR, weight: i ? 1.5 : 3, fillColor: SQUARE_COLOR, fillOpacity: SQUARE_FILL[i], interactive: false };
+      const b = squareBounds(s);
+      (b ? L.rectangle(b, style) : L.circle([s.lat, s.lng], { radius: 10, ...style })).addTo(spotLayer);
+    });
+    if (meMarker) { meCircle.bringToFront(); meMarker.bringToFront(); }
+  } else {
+    h.spots.forEach((s, i) => {
+      const icon = L.divIcon({ className: "", html: `<div class="pin"><b>${i + 1}</b></div>`, iconSize: [30, 30], iconAnchor: [15, 30] });
+      L.marker([s.lat, s.lng], { icon, title: s.name }).on("click", () => openSpot(s.id)).addTo(spotLayer);
+    });
+  }
   const total = h.spots.length, found = h.spots.filter((s) => s.found).length;
   $("#huntTitle").textContent = h.name;
   $("#huntMeta").textContent = total ? `${total} spot${total === 1 ? "" : "s"} · ${found} found` : "No spots yet";
@@ -822,9 +813,6 @@ $("#importInput").onchange = async (e) => {
   } catch { toast("That file isn't a Kea Hunt export"); }
 };
 
-/* ---------- Settings ---------- */
-$("#settingsBtn").onclick = () => $("#settingsDlg").showModal();
-$("#settingsForm").onsubmit = (e) => { e.preventDefault(); $("#settingsDlg").close(); };
 document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = () => b.closest("dialog").close()));
 document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
 
@@ -839,7 +827,6 @@ function setMode(m) {
   $("#panelHunt").hidden = m !== "hunt";
   $("#compassBtn").hidden = m !== "hunt" || compassOn;
   if (m === "hunt") { keepAwake(); renderTargets(); updateHunt(); }
-  else if (targetLine) { map.removeLayer(targetLine); targetLine = null; }
   renderSpots();
   setTimeout(() => map.invalidateSize(), 50);
 }
@@ -854,10 +841,11 @@ let lastMarcoDist = null;
 
 function unfound() { return hunt().spots.filter((s) => !s.found); }
 function target() { return hunt().spots.find((s) => s.id === targetId); }
-function pickNearest() {
-  const list = unfound(); if (!list.length) return null;
-  if (!me) return list[0].id;
-  return list.reduce((a, b) => (dist(me, a) <= dist(me, b) ? a : b)).id;
+// The trail is walked in order: the next spot is the first one not yet found.
+function pickNext() { const list = unfound(); return list.length ? list[0].id : null; }
+function upcoming() {
+  const list = unfound(), i = Math.max(0, list.findIndex((s) => s.id === targetId));
+  return list.slice(i, i + 3);
 }
 function setTarget(id) {
   targetId = id; distLog = []; lastBand = null; lastMarcoDist = null;
@@ -865,7 +853,7 @@ function setTarget(id) {
 }
 function renderTargets() {
   const h = hunt(), box = $("#targets"); box.textContent = "";
-  if (!target() || target().found) targetId = pickNearest();
+  if (!target() || target().found) targetId = pickNext();
   h.spots.forEach((s, i) => {
     const b = document.createElement("button");
     b.className = "chip" + (s.found ? " found" : "");
@@ -926,12 +914,6 @@ function updateHunt() {
   }
   $("#foundBtn").classList.toggle("pulse", s.band.id === "boiling");
 
-  if (!state.settings.hideSpots) {
-    const ll = [[me.lat, me.lng], [s.t.lat, s.t.lng]];
-    if (targetLine) targetLine.setLatLngs(ll);
-    else targetLine = L.polyline(ll, { color: "#e0661a", weight: 3, dashArray: "6 8", interactive: false }).addTo(map);
-  } else if (targetLine) { map.removeLayer(targetLine); targetLine = null; }
-
   // Entering a closer band: buzz.
   const bi = bandIndex(s.band);
   if (lastBand != null && bi < lastBand) vibrate([80, 60, 80]);
@@ -958,19 +940,12 @@ $("#foundBtn").onclick = () => {
   const t = target(); if (!t) return;
   t.found = Date.now(); saveState();
   vibrate([100, 50, 100, 50, 300]);
-  const left = unfound().length;
-  $("#celebrateText").textContent = left ? `${t.name} found. ${left} to go.` : `${t.name} found. That's every spot!`;
+  const left = unfound().length, label = gridRef(t) || t.name, next = unfound()[0];
+  $("#celebrateText").textContent = left ? `${label} found. ${left} to go. Next: ${gridRef(next) || next.name}` : `${label} found. That's every spot!`;
   $("#celebrateNext").textContent = left ? "Next spot" : "Finish";
   $("#celebrate").hidden = false;
 };
-$("#celebrateNext").onclick = () => { $("#celebrate").hidden = true; setTarget(pickNearest()); };
-
-/* Toggles */
-const toggles = { hideSpots: "#hideSpots" };
-Object.entries(toggles).forEach(([k, sel]) => {
-  $(sel).checked = !!state.settings[k];
-  $(sel).onchange = (e) => { state.settings[k] = e.target.checked; saveState(); renderSpots(); updateHunt(); };
-});
+$("#celebrateNext").onclick = () => { $("#celebrate").hidden = true; setTarget(pickNext()); };
 
 /* ---------- Compass ---------- */
 let compassHeading = null, compassOn = false;
