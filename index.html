@@ -287,9 +287,6 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
     <button id="followBtn" aria-pressed="true" aria-label="Follow my position">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
     </button>
-    <button id="layerBtn" aria-pressed="false" aria-label="Satellite view">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></svg>
-    </button>
     <button id="fitBtn" aria-label="Show all spots">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
     </button>
@@ -416,7 +413,7 @@ function saveState() {
 // The clue feature kept an API key here; clear it from phones that saved one.
 try { localStorage.removeItem("keaHunt.apiKey"); } catch {}
 
-const defaults = { base: "cracroft", mode: "record" };
+const defaults = { mode: "record" };
 let state = readJSON(LS_STATE) || { hunts: [], activeId: null, settings: {} };
 state.settings = Object.assign({}, defaults, state.settings);
 /* ---------- Hard-coded trail ---------- */
@@ -516,26 +513,9 @@ function squareBounds(p) {
 
 /* ---------- Map ---------- */
 const map = L.map("map", { zoomControl: false, attributionControl: true, maxZoom: 21 }).fitBounds(CRACROFT.bounds);
-const tiles = {
-  street: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 21, maxNativeZoom: 19, attribution: "© OpenStreetMap" }),
-  sat: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri" }),
-};
-const cracroftOverlay = L.imageOverlay(CRACROFT.image, CRACROFT.bounds, { attribution: "Cracroft map: LINZ Basemaps CC BY 4.0", interactive: false });
-const BASES = [
-  { id: "cracroft", label: "Cracroft grid map" },
-  { id: "sat", label: "Satellite" },
-  { id: "street", label: "Street map" },
-];
-function applyLayer() {
-  const base = BASES.some((b) => b.id === state.settings.base) ? state.settings.base : "cracroft";
-  [tiles.street, tiles.sat, cracroftOverlay].forEach((l) => map.removeLayer(l));
-  // The grid map sits on satellite tiles so the edges blend in.
-  (base === "street" ? tiles.street : tiles.sat).addTo(map);
-  if (base === "cracroft") cracroftOverlay.addTo(map);
-  $("#layerBtn").setAttribute("aria-pressed", String(base !== "street"));
-  $("#layerBtn").setAttribute("aria-label", `Map: ${BASES.find((b) => b.id === base).label}. Tap to change.`);
-}
-applyLayer();
+// The Cracroft grid map is the only map. It sits on satellite tiles so its edges blend in.
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri" }).addTo(map);
+L.imageOverlay(CRACROFT.image, CRACROFT.bounds, { attribution: "Cracroft map: LINZ Basemaps CC BY 4.0", interactive: false }).addTo(map);
 
 const spotLayer = L.layerGroup().addTo(map);
 let meMarker = null, meCircle = null;
@@ -576,11 +556,6 @@ map.on("dragstart", () => { follow = false; $("#followBtn").setAttribute("aria-p
 $("#followBtn").onclick = () => {
   follow = true; $("#followBtn").setAttribute("aria-pressed", "true");
   if (me) map.setView([me.lat, me.lng], Math.max(map.getZoom(), 18));
-};
-$("#layerBtn").onclick = () => {
-  const i = BASES.findIndex((b) => b.id === state.settings.base);
-  const next = BASES[(i + 1) % BASES.length];
-  state.settings.base = next.id; saveState(); applyLayer(); toast(next.label);
 };
 $("#fitBtn").onclick = fitAll;
 map.on("contextmenu", (e) => {
