@@ -78,12 +78,12 @@ button { cursor: pointer; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .hunt-name small { display: block; font: 400 .75rem/1.2 var(--body); opacity: .85; letter-spacing: .02em; }
-.modes { display: flex; background: color-mix(in srgb, var(--kea-deep) 55%, transparent); border-radius: 999px; padding: 3px; }
-.modes button {
-  border: 0; background: none; color: inherit; border-radius: 999px;
-  padding: 6px 12px; font-weight: 700; font-size: .9rem; white-space: nowrap;
+.bar-btn {
+  flex: none; display: flex; align-items: center; gap: 6px;
+  border: 0; border-radius: 999px; padding: 8px 14px;
+  background: color-mix(in srgb, var(--kea-deep) 55%, transparent); color: inherit; font-weight: 700;
 }
-.modes button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
+.bar-btn svg { width: 20px; height: 20px; }
 .icon-btn {
   width: 40px; height: 40px; flex: none; display: grid; place-items: center;
   border: 0; border-radius: 50%; background: none; color: inherit;
@@ -123,14 +123,44 @@ button { cursor: pointer; }
 .pin.found { background: #6c7a63; }
 .pin.target { background: var(--t-boiling); outline: 3px solid #fff8; }
 
-/* Panels */
-.panel {
-  background: var(--surface); border-top: 1px solid var(--line);
-  padding-block: 12px calc(12px + env(safe-area-inset-bottom, 0px));
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: flex; flex-direction: column; gap: 10px;
+/* Overlays floating on the map: mode switch and Tag button at the bottom, Marco Polo card above them. */
+.dock {
+  position: absolute; z-index: 900; left: 0; right: 0; margin-inline: auto; max-width: 560px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(10px, env(safe-area-inset-left, 0px));
+  padding-right: max(10px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
 }
+.dock-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.dock-row > *, .hunt-card { pointer-events: auto; }
+.modes {
+  display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .22);
+}
+.modes button {
+  border: 0; background: none; color: var(--ink); border-radius: 999px;
+  padding: 9px 14px; font-weight: 700; font-size: .9rem; white-space: nowrap;
+}
+.modes button[aria-pressed="true"] { background: var(--kea); color: var(--on-accent); }
+.tag-fab {
+  --p: 0;
+  width: 84px; height: 84px; flex: none; border: 0; border-radius: 50%;
+  background: var(--flame); color: #fff;
+  display: grid; place-items: center; align-content: center;
+  font: 800 1.05rem/1 var(--display);
+  box-shadow: 0 4px 14px rgb(0 0 0 / .35), inset 0 0 0 4px #fff;
+}
+.tag-fab svg { width: 32px; height: 32px; }
+/* A ring fills while the next few GPS readings sharpen the spot just tagged. */
+.tag-fab.refining { background: conic-gradient(rgb(255 255 255 / .4) calc(var(--p) * 1turn), var(--flame) 0); }
+.tag-fab:active { transform: scale(.94); }
+.hunt-card {
+  background: var(--surface); border-radius: 20px; padding: 10px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / .3);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.hunt-actions { display: flex; gap: 8px; }
+.hunt-actions .btn { min-height: 52px; font: 800 1.15rem/1 var(--display); }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1; min-width: 0; }
 .muted { color: var(--muted); }
@@ -147,11 +177,6 @@ button { cursor: pointer; }
 .btn:disabled { opacity: .5; cursor: default; }
 .btn.big { font: 800 1.35rem/1 var(--display); min-height: 64px; border-radius: 18px; letter-spacing: .01em; }
 
-.tag-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; }
-.tag-btn svg { width: 28px; height: 28px; }
-.capture-bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-.capture-bar span { display: block; height: 100%; width: 0; background: var(--flame); transition: width .25s linear; }
-
 /* Marco Polo */
 .targets { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
 .targets::-webkit-scrollbar { display: none; }
@@ -164,7 +189,7 @@ button { cursor: pointer; }
 
 .temp {
   --t: var(--t-cool);
-  background: var(--t); color: #fff; border-radius: 20px; padding: 12px 16px;
+  background: var(--t); color: #fff; border-radius: 14px; padding: 8px 12px;
   display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center;
   transition: background-color .6s ease;
 }
@@ -174,20 +199,20 @@ button { cursor: pointer; }
 .temp[data-band="warm"] { --t: var(--t-warm); }
 .temp[data-band="hot"] { --t: var(--t-hot); }
 .temp[data-band="boiling"] { --t: var(--t-boiling); }
-.temp-word { font: 800 2.1rem/1 var(--display); text-transform: uppercase; letter-spacing: .03em; }
-.temp-sub { font-size: .95rem; font-weight: 700; opacity: .95; font-variant-numeric: tabular-nums; }
+.temp-word { font: 800 1.7rem/1 var(--display); text-transform: uppercase; letter-spacing: .03em; }
+.temp-sub { font-size: .9rem; font-weight: 700; opacity: .95; font-variant-numeric: tabular-nums; }
 .arrow-box {
   grid-row: 1 / span 2; grid-column: 2;
-  width: 76px; height: 76px; border-radius: 50%; background: rgb(255 255 255 / .2);
+  width: 60px; height: 60px; border-radius: 50%; background: rgb(255 255 255 / .2);
   display: grid; place-items: center;
 }
-.arrow-box svg { width: 54px; height: 54px; transition: transform .3s ease; }
+.arrow-box svg { width: 42px; height: 42px; transition: transform .3s ease; }
 .arrow-box .dir { font: 800 1.1rem/1 var(--display); }
 .trend { font-weight: 800; }
 
 .clue {
-  border: 2px dashed var(--line); border-radius: 14px; padding: 10px 12px;
-  font-size: 1.05rem; min-height: 3.2em;
+  border: 2px dashed var(--line); border-radius: 14px; padding: 8px 12px;
+  font-size: 1.05rem; max-height: 7.5em; overflow-y: auto;
 }
 .clue.thinking { color: var(--muted); font-style: italic; }
 .clue .who { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; font-style: normal; }
@@ -224,16 +249,24 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
   display: grid; place-items: center; font: 800 .85rem/1 var(--display);
 }
 .list .num.found { background: #6c7a63; }
+.list .sq { flex: none; min-width: 2.6em; font: 800 1.7rem/1 var(--display); color: var(--kea-deep); }
+.list .sq.off { font-size: .85rem; color: var(--muted); }
 .list .txt { min-width: 0; flex: 1; }
 .list .txt b, .list .txt span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list .txt span { font-size: .85rem; color: var(--muted); }
 .coords { font: .82rem/1.3 ui-monospace, "Cascadia Mono", Menlo, monospace; color: var(--muted); }
 
 .toast {
-  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  position: fixed; left: 16px; right: 16px; margin-inline: auto; width: fit-content;
+  top: calc(env(safe-area-inset-top, 0px) + 112px);
   z-index: 2000; background: var(--ink); color: var(--surface);
-  padding: 10px 16px; border-radius: 12px; font-weight: 700; max-width: calc(100% - 32px);
+  padding: 10px 16px; border-radius: 12px; font-weight: 700;
   box-shadow: 0 4px 14px rgb(0 0 0 / .3);
+  display: flex; align-items: center; gap: 14px;
+}
+.toast button {
+  flex: none; border: 0; background: none; color: var(--flame); padding: 6px 4px;
+  font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
 }
 .celebrate {
   position: fixed; inset: 0; z-index: 1500; display: grid; place-items: center;
@@ -248,7 +281,6 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
 }
 @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes pulse { 50% { transform: scale(1.04); } }
-@media (min-height: 760px) { .temp-word { font-size: 2.5rem; } }
 </style>
 </head>
 <body>
@@ -258,10 +290,10 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
     <span id="huntTitle">Kea Hunt</span>
     <small id="huntMeta">0 spots</small>
   </button>
-  <div class="modes" role="group" aria-label="Mode">
-    <button id="modeRecord" aria-pressed="true">Record</button>
-    <button id="modeHunt" aria-pressed="false">Marco Polo</button>
-  </div>
+  <button class="bar-btn" id="listBtn" aria-label="Trail list">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.3" fill="currentColor"/><circle cx="4" cy="12" r="1.3" fill="currentColor"/><circle cx="4" cy="18" r="1.3" fill="currentColor"/></svg>
+    List
+  </button>
   <button class="icon-btn" id="settingsBtn" aria-label="Settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
   </button>
@@ -280,54 +312,51 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
     <button id="fitBtn" aria-label="Show all spots">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
     </button>
+    <button id="compassBtn" aria-label="Use compass" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>
+    </button>
   </div>
-</div>
 
-<!-- Record mode -->
-<section class="panel" id="panelRecord">
-  <button class="btn flame big tag-btn" id="tagBtn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><path d="M12 7v5M9.5 9.5h5"/></svg>
-    <span id="tagLabel">Tag this spot</span>
-  </button>
-  <div class="capture-bar" id="captureBar" hidden><span></span></div>
-  <div class="row small">
-    <span class="grow muted" id="recordHint">Stand right on the spot, then tap. It averages a few GPS readings. You can also long-press the map to drop a spot.</span>
-    <button class="btn" id="listBtn">Spots</button>
-  </div>
-</section>
-
-<!-- Marco Polo mode -->
-<section class="panel" id="panelHunt" hidden>
-  <div class="targets" id="targets" role="group" aria-label="Spot to find"></div>
-  <div id="huntBody">
-    <div class="temp" id="temp" data-band="cool">
-      <div class="temp-word" id="tempWord">—</div>
-      <div class="arrow-box" id="arrowBox" aria-hidden="true">
-        <svg id="arrow" viewBox="0 0 24 24" fill="#fff"><path d="M12 2 20 20 12 16 4 20z"/></svg>
-        <span class="dir" id="dirText" hidden></span>
+  <div class="dock">
+    <!-- Marco Polo mode -->
+    <section class="hunt-card" id="panelHunt" hidden>
+      <div class="targets" id="targets" role="group" aria-label="Spot to find"></div>
+      <div id="huntBody">
+        <div class="temp" id="temp" data-band="cool">
+          <div class="temp-word" id="tempWord">—</div>
+          <div class="arrow-box" id="arrowBox" aria-hidden="true">
+            <svg id="arrow" viewBox="0 0 24 24" fill="#fff"><path d="M12 2 20 20 12 16 4 20z"/></svg>
+            <span class="dir" id="dirText" hidden></span>
+          </div>
+          <div class="temp-sub"><span id="distText">Waiting for GPS</span> <span class="trend" id="trendText"></span></div>
+        </div>
       </div>
-      <div class="temp-sub"><span id="distText">Waiting for GPS</span> · <span class="trend" id="trendText"></span></div>
+      <div class="clue" id="clue" hidden></div>
+      <div class="hunt-actions" id="huntActions">
+        <button class="btn primary grow" id="marcoBtn">Marco!</button>
+        <button class="btn" id="clueBtn">Clue</button>
+        <button class="btn" id="foundBtn">Found</button>
+      </div>
+      <div class="empty muted" id="huntEmpty" hidden>No spots to find yet. Switch to <b>Record</b> and tag some.</div>
+    </section>
+    <div class="dock-row">
+      <div class="modes" role="group" aria-label="Mode">
+        <button id="modeRecord" aria-pressed="true">Record</button>
+        <button id="modeHunt" aria-pressed="false">Marco Polo</button>
+      </div>
+      <!-- Record mode: one tap saves the spot straight away -->
+      <button class="tag-fab" id="tagBtn" aria-label="Tag this spot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><path d="M12 7v5M9.5 9.5h5"/></svg>
+        Tag
+      </button>
     </div>
   </div>
-  <div class="row">
-    <button class="btn primary big grow" id="marcoBtn">Marco!</button>
-    <button class="btn big" id="clueBtn">Clue</button>
-    <button class="btn big" id="foundBtn">Found</button>
-  </div>
-  <div class="clue" id="clue" hidden></div>
-  <div class="toggles">
-    <label><input type="checkbox" id="hideSpots"> Hide spots on map</label>
-    <label><input type="checkbox" id="autoClue"> Auto clues</label>
-    <label><input type="checkbox" id="voiceOn"> Speak</label>
-    <button class="btn small" id="compassBtn" style="min-height:36px;padding:4px 10px">Use compass</button>
-  </div>
-  <div class="empty muted" id="huntEmpty" hidden>No spots to find yet. Switch to <b>Record</b> and tag some.</div>
-</section>
+</div>
 
 <!-- Save / edit spot -->
 <dialog id="spotDlg">
   <form class="sheet" id="spotForm" method="dialog">
-    <h2 id="spotDlgTitle">New spot</h2>
+    <h2 id="spotDlgTitle">Edit spot</h2>
     <label class="field"><span>Name</span><input id="spotName" maxlength="60" autocomplete="off"></label>
     <label class="field"><span>Notes for clues</span>
       <textarea id="spotHint" maxlength="600" placeholder="What's hidden here and what's nearby. E.g. 'Orange token tucked behind the mossy log, next to the big rimu by the stream.'"></textarea>
@@ -347,11 +376,17 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
 <!-- Spot list -->
 <dialog id="listDlg">
   <div class="sheet">
-    <h2>Spots in this hunt</h2>
+    <h2 id="listTitle">Trail</h2>
     <ul class="list" id="spotList"></ul>
-    <p class="muted small" id="listEmpty" hidden>No spots yet. Walk to a spot and tap <b>Tag this spot</b>.</p>
+    <p class="muted small" id="listEmpty" hidden>No spots yet. In <b>Record</b>, walk to a spot and tap <b>Tag</b>.</p>
     <textarea id="trailOut" class="coords" rows="6" readonly hidden style="width:100%;border:2px solid var(--line);border-radius:12px;padding:8px;background:var(--bg)"></textarea>
-    <div class="row"><button class="btn" id="copyTrailBtn">Copy trail</button><span class="grow"></span><button class="btn" data-close>Close</button></div>
+    <div class="row">
+      <button class="btn" id="copyTrailBtn">Copy</button>
+      <button class="btn" id="shareTrailBtn" hidden>Share</button>
+      <span class="grow"></span>
+      <button class="btn primary" data-close>Close</button>
+    </div>
+    <p class="muted small" id="listHelp">Tap a spot to rename it, add clue notes or delete it.</p>
   </div>
 </dialog>
 
@@ -398,6 +433,13 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
         <option value="Scouts (ages 11 to 14)">Scouts (11–14)</option>
       </select>
     </label>
+    <div class="field"><span>Marco Polo</span>
+      <div class="toggles">
+        <label><input type="checkbox" id="hideSpots"> Hide spots on map</label>
+        <label><input type="checkbox" id="autoClue"> Auto clues</label>
+        <label><input type="checkbox" id="voiceOn"> Speak</label>
+      </div>
+    </div>
     <div class="row">
       <button type="button" class="btn" id="testKeyBtn">Test key</button>
       <span class="grow small muted" id="testKeyOut"></span>
@@ -413,7 +455,7 @@ dialog::backdrop { background: rgb(10 14 8 / .55); }
     <button class="btn big" id="celebrateNext" style="background:#fff;color:#1d261b;border-color:#fff">Next spot</button>
   </div>
 </div>
-<div class="toast" id="toast" role="status" hidden></div>
+<div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button id="toastAction" hidden></button></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -567,17 +609,16 @@ $("#layerBtn").onclick = () => {
 $("#fitBtn").onclick = fitAll;
 map.on("contextmenu", (e) => {
   if (mode !== "record") return;
-  openSpot(null, { lat: e.latlng.lat, lng: e.latlng.lng, acc: null });
+  addSpot({ lat: e.latlng.lat, lng: e.latlng.lng, acc: null });
 });
 
 /* ---------- GPS ---------- */
-let me = null;            // latest fix {lat,lng,acc,heading,speed,t}
+let me = null;            // latest fix {lat,lng,acc,heading,speed,t,got}
 let firstFix = true;
-const capture = { on: false, readings: [], start: 0, timer: null };
 
 function onPos(p) {
   const c = p.coords;
-  me = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, heading: c.heading, speed: c.speed, t: p.timestamp };
+  me = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, heading: c.heading, speed: c.speed, t: p.timestamp, got: Date.now() };
   const ll = [me.lat, me.lng];
   if (!meMarker) {
     meCircle = L.circle(ll, { radius: me.acc, color: "#1f6fe0", weight: 1, fillOpacity: 0.12, interactive: false }).addTo(map);
@@ -590,7 +631,7 @@ function onPos(p) {
   $("#gpsChip").dataset.q = q;
   const sq = gridRef(me);
   $("#gpsText").textContent = (sq ? `You're in ${sq} · ` : "") + `GPS ±${Math.round(me.acc)} m`;
-  if (capture.on) capture.readings.push({ ...me });
+  refineWith({ ...me });
   if (mode === "hunt") updateHunt();
 }
 function onPosErr(e) {
@@ -603,110 +644,128 @@ if ("geolocation" in navigator) {
 } else onPosErr({ code: 2 });
 
 /* ---------- Record mode ---------- */
-const CAPTURE_MS = 8000;
+// One tap saves the spot from the current fix, no questions asked. For the next few seconds,
+// further fixes taken while standing still sharpen it (weighted by 1/accuracy²), so walking
+// straight on costs nothing and pausing a moment gives a better position.
+const REFINE_MS = 4000;
+const FRESH_MS = 6000;
+let refine = null;        // { id, first, readings, start, timer }
+
 $("#tagBtn").onclick = () => {
-  if (capture.on) return finishCapture();
-  if (!me) return toast("Still waiting for a GPS fix");
-  capture.on = true; capture.readings = [{ ...me }]; capture.start = Date.now();
-  $("#tagLabel").textContent = "Hold still… tap to finish";
-  $("#captureBar").hidden = false;
+  if (!me || Date.now() - me.got > FRESH_MS) return toast("Still waiting for a GPS fix");
   keepAwake();
-  capture.timer = setInterval(() => {
-    const el = Date.now() - capture.start;
-    $("#captureBar span").style.width = Math.min(100, el / CAPTURE_MS * 100) + "%";
-    const good = capture.readings.filter((r) => r.acc <= 5).length;
-    if (el >= CAPTURE_MS || good >= 4) finishCapture();
-  }, 250);
+  addSpot({ lat: me.lat, lng: me.lng, acc: me.acc }, true);
 };
-function finishCapture() {
-  clearInterval(capture.timer); capture.on = false;
-  $("#tagLabel").textContent = "Tag this spot";
-  $("#captureBar").hidden = true; $("#captureBar span").style.width = "0";
-  // Weight each reading by 1/accuracy² so good fixes dominate.
-  const rs = capture.readings.filter((r) => r.acc <= Math.min(...capture.readings.map((x) => x.acc)) * 3);
-  let w = 0, lat = 0, lng = 0;
-  rs.forEach((r) => { const k = 1 / Math.max(1, r.acc) ** 2; w += k; lat += r.lat * k; lng += r.lng * k; });
-  const acc = Math.min(...rs.map((r) => r.acc));
-  const pos = { lat: lat / w, lng: lng / w, acc };
-  if (retagId) { applyRetag(pos); return; }
-  openSpot(null, pos);
+function addSpot(pos, fromGps) {
+  finishRefine();
+  const h = hunt();
+  const s = { id: uid(), name: `Spot ${h.spots.length + 1}`, hint: "", lat: pos.lat, lng: pos.lng, acc: pos.acc, created: Date.now(), found: null };
+  h.spots.push(s); saveState(); renderSpots(); renderTargets();
+  if (fromGps) startRefine(s.id);
   vibrate(60);
+  const sq = gridRef(s);
+  toast(`${h.spots.length}. ${sq || "Off the grid"} tagged` + (pos.acc ? ` ±${Math.round(pos.acc)} m` : ""), { label: "Undo", fn: () => removeSpot(s.id) });
+}
+function removeSpot(id) {
+  if (refine && refine.id === id) finishRefine();
+  const h = hunt(); h.spots = h.spots.filter((x) => x.id !== id);
+  if (targetId === id) targetId = null;
+  saveState(); renderSpots(); renderTargets();
+}
+function startRefine(id) {
+  refine = { id, first: { ...me }, readings: [{ ...me }], start: Date.now() };
+  $("#tagBtn").classList.add("refining");
+  refine.timer = setInterval(() => {
+    const p = Math.min(1, (Date.now() - refine.start) / REFINE_MS);
+    $("#tagBtn").style.setProperty("--p", p);
+    if (p >= 1) finishRefine();
+  }, 100);
+}
+function refineWith(r) {
+  if (!refine) return;
+  // Ignore fixes once they've walked on: moving, or clearly away from where they tapped.
+  if ((r.speed || 0) > 0.8 || dist(refine.first, r) > Math.max(4, refine.first.acc)) return;
+  refine.readings.push(r);
+  const s = hunt().spots.find((x) => x.id === refine.id); if (!s) return finishRefine();
+  const best = Math.min(...refine.readings.map((x) => x.acc));
+  const rs = refine.readings.filter((x) => x.acc <= best * 3);
+  let w = 0, lat = 0, lng = 0;
+  rs.forEach((x) => { const k = 1 / Math.max(1, x.acc) ** 2; w += k; lat += x.lat * k; lng += x.lng * k; });
+  Object.assign(s, { lat: lat / w, lng: lng / w, acc: best });
+  saveState(); renderSpots();
+}
+function finishRefine() {
+  if (!refine) return;
+  clearInterval(refine.timer); refine = null;
+  $("#tagBtn").classList.remove("refining"); $("#tagBtn").style.setProperty("--p", 0);
 }
 
 /* ---------- Spot dialog ---------- */
-let editingId = null, pendingPos = null, retagId = null;
-function openSpot(id, pos) {
-  const h = hunt();
-  editingId = id; pendingPos = pos || null;
-  const s = id ? h.spots.find((x) => x.id === id) : null;
-  $("#spotDlgTitle").textContent = s ? "Edit spot" : "New spot";
-  $("#spotName").value = s ? s.name : `Spot ${h.spots.length + 1}`;
-  $("#spotHint").value = s ? s.hint || "" : "";
-  const p = s || pos;
-  const sq = gridRef(p);
-  $("#spotCoords").textContent = (sq ? `Square ${sq} · ` : "") + `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}` + (p.acc ? `  ±${Math.round(p.acc)} m` : "  (placed on map)");
-  $("#spotDelete").hidden = !s; $("#spotRetag").hidden = !s;
+let editingId = null;
+function openSpot(id) {
+  const s = hunt().spots.find((x) => x.id === id); if (!s) return;
+  editingId = id;
+  $("#spotName").value = s.name;
+  $("#spotHint").value = s.hint || "";
+  const sq = gridRef(s);
+  $("#spotCoords").textContent = (sq ? `Square ${sq} · ` : "") + `${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}` + (s.acc ? `  ±${Math.round(s.acc)} m` : "  (placed on map)");
   disarm($("#spotDelete"), "Delete");
   $("#spotDlg").showModal();
 }
 $("#spotForm").onsubmit = (e) => {
   e.preventDefault();
-  const h = hunt();
-  const name = $("#spotName").value.trim() || `Spot ${h.spots.length + 1}`;
-  const hint = $("#spotHint").value.trim();
-  if (editingId) Object.assign(h.spots.find((x) => x.id === editingId), { name, hint });
-  else h.spots.push({ id: uid(), name, hint, ...pendingPos, created: Date.now(), found: null });
+  const s = hunt().spots.find((x) => x.id === editingId);
+  if (s) { s.name = $("#spotName").value.trim() || s.name; s.hint = $("#spotHint").value.trim(); }
   saveState(); renderSpots(); renderTargets();
   $("#spotDlg").close();
-  toast(editingId ? "Saved" : `Tagged “${name}”`);
+  toast("Saved");
 };
 $("#spotCancel").onclick = () => $("#spotDlg").close();
-armable($("#spotDelete"), "Delete", () => {
-  const h = hunt(); h.spots = h.spots.filter((x) => x.id !== editingId);
-  if (targetId === editingId) targetId = null;
-  saveState(); renderSpots(); renderTargets(); $("#spotDlg").close(); toast("Spot deleted");
-});
+armable($("#spotDelete"), "Delete", () => { removeSpot(editingId); $("#spotDlg").close(); toast("Spot deleted"); });
 $("#spotRetag").onclick = () => {
-  if (!me) return toast("Still waiting for a GPS fix");
-  retagId = editingId; $("#spotDlg").close();
-  setMode("record"); $("#tagBtn").click();
-  toast("Hold still to re-tag this spot");
+  if (!me || Date.now() - me.got > FRESH_MS) return toast("Still waiting for a GPS fix");
+  const s = hunt().spots.find((x) => x.id === editingId); if (!s) return;
+  finishRefine();
+  Object.assign(s, { lat: me.lat, lng: me.lng, acc: me.acc }); saveState(); renderSpots();
+  startRefine(s.id);
+  $("#spotDlg").close(); toast(`Moved “${s.name}” here`);
 };
-function applyRetag(pos) {
-  const s = hunt().spots.find((x) => x.id === retagId); retagId = null;
-  if (!s) return;
-  Object.assign(s, pos); saveState(); renderSpots(); toast(`Moved “${s.name}” here`);
-}
 
-/* ---------- Spot list ---------- */
+/* ---------- Trail list ---------- */
+// The trail as big grid squares in tagging order, so it can be read out or copied for the group.
 $("#listBtn").onclick = () => {
   const ul = $("#spotList"); ul.textContent = "";
   const h = hunt();
   h.spots.forEach((s, i) => {
     const li = document.createElement("li");
     const b = document.createElement("button");
-    const d = me ? ` · ${fmtDist(dist(me, s))} away` : "";
-    b.innerHTML = `<span class="num ${s.found ? "found" : ""}">${i + 1}</span><span class="txt"><b></b><span></span></span>`;
     const sq = gridRef(s);
-    b.querySelector("b").textContent = (sq ? `${sq} · ` : "") + s.name + (s.found ? " ✓" : "");
-    b.querySelector(".txt span").textContent = (s.hint || "No notes") + d;
+    b.innerHTML = `<span class="num ${s.found ? "found" : ""}">${i + 1}</span><span class="sq ${sq ? "" : "off"}"></span><span class="txt"><b></b><span></span></span>`;
+    b.querySelector(".sq").textContent = sq || "Off grid";
+    b.querySelector("b").textContent = s.name + (s.found ? " ✓" : "");
+    b.querySelector(".txt span").textContent = [s.hint, me && `${fmtDist(dist(me, s))} away`].filter(Boolean).join(" · ") || "No notes";
     b.onclick = () => { $("#listDlg").close(); map.setView([s.lat, s.lng], 19); follow = false; $("#followBtn").setAttribute("aria-pressed", "false"); openSpot(s.id); };
     li.append(b); ul.append(li);
   });
-  $("#listEmpty").hidden = h.spots.length > 0;
-  $("#copyTrailBtn").hidden = !h.spots.length;
+  const n = h.spots.length;
+  $("#listTitle").textContent = n ? `Trail · ${n} spot${n === 1 ? "" : "s"}` : "Trail";
+  $("#listEmpty").hidden = n > 0;
+  $("#listHelp").hidden = !n;
+  $("#copyTrailBtn").hidden = !n;
+  $("#shareTrailBtn").hidden = !n || !navigator.share;
+  $("#trailOut").hidden = true;
   $("#listDlg").showModal();
 };
-// The trail as grid squares, in tagging order, ready to paste into a message or print.
 function trailText() {
   const h = hunt();
-  return [`${h.name}: Cracroft Reserve grid trail`, ...h.spots.map((s, i) => `${i + 1}. ${gridRef(s) || "off map"}  ${s.name}`)].join("\n");
+  return [`${h.name}: Cracroft Reserve grid trail`, ...h.spots.map((s, i) => `${i + 1}. ${gridRef(s) || "off map"}` + (/^Spot \d+$/.test(s.name) ? "" : `  ${s.name}`))].join("\n");
 }
 $("#copyTrailBtn").onclick = async () => {
   const text = trailText();
   try { await navigator.clipboard.writeText(text); toast("Trail copied"); }
   catch { $("#trailOut").hidden = false; $("#trailOut").value = text; $("#trailOut").select(); toast("Select and copy the trail below"); }
 };
+$("#shareTrailBtn").onclick = () => { navigator.share({ title: hunt().name, text: trailText() }).catch(() => {}); };
 
 /* ---------- Hunts dialog ---------- */
 function renderHuntList() {
@@ -783,8 +842,9 @@ function setMode(m) {
   mode = m; state.settings.mode = m; saveState();
   $("#modeRecord").setAttribute("aria-pressed", String(m === "record"));
   $("#modeHunt").setAttribute("aria-pressed", String(m === "hunt"));
-  $("#panelRecord").hidden = m !== "record";
+  $("#tagBtn").hidden = m !== "record";
   $("#panelHunt").hidden = m !== "hunt";
+  $("#compassBtn").hidden = m !== "hunt" || compassOn;
   if (m === "hunt") { keepAwake(); renderTargets(); updateHunt(); }
   else if (targetLine) { map.removeLayer(targetLine); targetLine = null; }
   renderSpots();
@@ -819,14 +879,15 @@ function renderTargets() {
   h.spots.forEach((s, i) => {
     const b = document.createElement("button");
     b.className = "chip" + (s.found ? " found" : "");
-    b.textContent = `${i + 1}. ${s.name}`;
+    b.textContent = `${i + 1} · ${gridRef(s) || s.name}`;
     b.setAttribute("aria-pressed", String(s.id === targetId));
     b.onclick = () => setTarget(s.id);
     box.append(b);
   });
   const none = !h.spots.length;
   $("#huntEmpty").hidden = !none;
-  ["#huntBody", "#marcoBtn", "#clueBtn", "#foundBtn"].forEach((s) => ($(s).closest(".row") || $(s)).hidden = none);
+  ["#targets", "#huntBody", "#huntActions"].forEach((s) => ($(s).hidden = none));
+  if (none) $("#clue").hidden = true;
   if (!none && !unfound().length) {
     $("#tempWord").textContent = "All found!";
     $("#distText").textContent = "Tap Hunts → Reset found to play again";
@@ -866,7 +927,7 @@ function updateHunt() {
   $("#tempWord").textContent = s.band.word;
   const tSq = gridRef(s.t), mSq = gridRef(me);
   $("#distText").textContent = `${fmtDist(s.d)} (~${steps(s.d)} steps)` + (tSq ? ` · go to ${tSq}` : "") + (mSq ? ` · you're in ${mSq}` : "");
-  $("#trendText").textContent = tr < 0 ? "warmer ▲" : tr > 0 ? "colder ▼" : "";
+  $("#trendText").textContent = tr < 0 ? "· warmer ▲" : tr > 0 ? "· colder ▼" : "";
   if (s.hd != null) {
     $("#arrow").style.display = ""; $("#dirText").hidden = true;
     $("#arrow").style.transform = `rotate(${(s.b - s.hd + 360) % 360}deg)`;
@@ -931,7 +992,7 @@ Object.entries(toggles).forEach(([k, sel]) => {
 });
 
 /* ---------- Compass ---------- */
-let compassHeading = null;
+let compassHeading = null, compassOn = false;
 function onOrient(e) {
   let h = null;
   if (typeof e.webkitCompassHeading === "number") h = e.webkitCompassHeading;
@@ -959,7 +1020,7 @@ $("#compassBtn").onclick = async () => {
     }
     if ("ondeviceorientationabsolute" in window) window.addEventListener("deviceorientationabsolute", onOrient);
     else window.addEventListener("deviceorientation", onOrient);
-    $("#compassBtn").hidden = true;
+    compassOn = true; $("#compassBtn").hidden = true;
     toast("Compass on. Hold the phone flat and point it ahead.");
     setTimeout(() => { if (compassHeading == null) toast("No compass found. The arrow will work once you start walking."); }, 3000);
   } catch { toast("This phone doesn't share its compass with the browser"); }
@@ -1053,9 +1114,12 @@ async function keepAwake() {
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && mode === "hunt") keepAwake(); });
 let toastTimer;
-function toast(msg) {
-  const t = $("#toast"); t.textContent = msg; t.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 3500);
+function toast(msg, action) {
+  const t = $("#toast"), btn = $("#toastAction");
+  $("#toastText").textContent = msg; t.hidden = false;
+  btn.hidden = !action;
+  if (action) { btn.textContent = action.label; btn.onclick = () => { t.hidden = true; action.fn(); }; }
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), action ? 5000 : 3500);
 }
 function armable(btn, label, action) {
   btn.onclick = () => {
